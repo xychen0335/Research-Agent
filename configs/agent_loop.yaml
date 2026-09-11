@@ -1,0 +1,2 @@
+- name: bird_sql_agent
+  _target_: agenticrl.verl_agent_loop.BirdSqlAgentLoop

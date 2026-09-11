@@ -1,0 +1,11 @@
+{
+  "bird_rl": {
+    "url": "https://github.com/bird-bench/BIRD-RL.git",
+    "commit": "b26c4285ef69dfb6c096b076a7499018c6b370ca"
+  },
+  "verl": {
+    "url": "https://github.com/verl-project/verl.git",
+    "commit": "10db40d0da4d59150bb389960b77585f81a89b8d"
+  },
+  "model": "Qwen/Qwen3.5-4B"
+}

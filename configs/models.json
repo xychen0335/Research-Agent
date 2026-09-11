@@ -1,0 +1,22 @@
+{
+  "profiles": {
+    "base": {
+      "label": "Base",
+      "base_url": "http://127.0.0.1:8000/v1",
+      "model": "base",
+      "api_key_env": "SQL_AGENT_API_KEY"
+    },
+    "sft": {
+      "label": "SFT",
+      "base_url": "http://127.0.0.1:8001/v1",
+      "model": "sft",
+      "api_key_env": "SQL_AGENT_API_KEY"
+    },
+    "sft_rl": {
+      "label": "SFT + GRPO",
+      "base_url": "http://127.0.0.1:8002/v1",
+      "model": "sft-rl",
+      "api_key_env": "SQL_AGENT_API_KEY"
+    }
+  }
+}

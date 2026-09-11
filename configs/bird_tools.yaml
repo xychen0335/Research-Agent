@@ -1,0 +1,31 @@
+tools:
+  - class_name: "agenticrl.verl_tools.ReadOnlyBirdSqlTool"
+    config:
+      type: native
+    tool_schema:
+      type: function
+      function:
+        name: execute_sql
+        description: "Execute one read-only SQLite query for exploration. This does not reveal correctness."
+        parameters:
+          type: object
+          properties:
+            sql:
+              type: string
+          required: [sql]
+          additionalProperties: false
+  - class_name: "agenticrl.verl_tools.SubmitBirdSqlTool"
+    config:
+      type: native
+    tool_schema:
+      type: function
+      function:
+        name: submit_solution
+        description: "Submit the final SQL and end the episode."
+        parameters:
+          type: object
+          properties:
+            sql:
+              type: string
+          required: [sql]
+          additionalProperties: false
