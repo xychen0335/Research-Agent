@@ -1,0 +1,36 @@
+{
+  "seed": 20260911,
+  "train": {
+    "repo_id": "birdsql/bird23-train-filtered",
+    "revision": "4068469807b255fcfc0816bdd520946fe460d256",
+    "records_file": "data/train-00000-of-00001.jsonl",
+    "column_meaning_file": "train_column_meaning.json",
+    "database_archive_url": "https://bird-bench.oss-cn-beijing.aliyuncs.com/train.zip",
+    "expected_records": 6601,
+    "validation_database_fraction": 0.15,
+    "validation_databases": [
+      "bike_share_1",
+      "disney",
+      "donor",
+      "food_inspection",
+      "food_inspection_2",
+      "human_resources",
+      "shakespeare",
+      "synthea",
+      "university",
+      "video_games",
+      "world"
+    ],
+    "sft_train_records": 1500,
+    "sft_validation_records": 150,
+    "rl_train_records": 2000,
+    "rl_validation_records": 200
+  },
+  "test": {
+    "repo_id": "birdsql/bird_mini_dev",
+    "revision": "f65faf4ae3b638c1fa6df1d3370c8d92c8366301",
+    "records_file": "data/mini_dev_sqlite-00000-of-00001.json",
+    "database_google_drive_id": "13VLWIwpw5E3d5DUkMvzw7hvHE67a4XkG",
+    "expected_records": 500
+  }
+}

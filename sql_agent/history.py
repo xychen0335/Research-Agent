@@ -24,6 +24,8 @@ def load_runs(root="outputs"):
                     if not line.strip():
                         continue
                     row = json.loads(line)
+                    if not {"model", "elapsed_seconds", "prediction"}.issubset(row):
+                        continue
                     row["source_file"] = str(path)
                     row["source_line"] = line_number
                     records.append(row)

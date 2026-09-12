@@ -1,0 +1,30 @@
+diff --git a/bird_rl/inference/bird/evaluate.py b/bird_rl/inference/bird/evaluate.py
+index e759a78..f6a1415 100644
+--- a/bird_rl/inference/bird/evaluate.py
++++ b/bird_rl/inference/bird/evaluate.py
+@@ -22,7 +22,9 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
+ def _execute_sql_worker(queue, sql, db_path):
+     """Worker function for multiprocessing-based timeout."""
+     try:
+-        conn = sqlite3.connect(db_path, timeout=30.0)
++        database_uri = Path(db_path).resolve().as_uri() + "?mode=ro"
++        conn = sqlite3.connect(database_uri, uri=True, timeout=30.0)
++        conn.execute("PRAGMA query_only=ON")
+         cursor = conn.cursor()
+         cursor.execute(sql)
+         col_names = [desc[0] for desc in cursor.description] if cursor.description else []
+diff --git a/bird_rl/inference/execute_sql_observations.py b/bird_rl/inference/execute_sql_observations.py
+index d5cec44..ba9dd1e 100644
+--- a/bird_rl/inference/execute_sql_observations.py
++++ b/bird_rl/inference/execute_sql_observations.py
+@@ -33,7 +33,9 @@ def _format_rows_as_json(col_names, rows, max_rows=50):
+ def _execute_sql_worker(queue, sql, db_path):
+     """Worker function for multiprocessing-based timeout."""
+     try:
+-        conn = sqlite3.connect(db_path, timeout=30.0)
++        database_uri = Path(db_path).resolve().as_uri() + "?mode=ro"
++        conn = sqlite3.connect(database_uri, uri=True, timeout=30.0)
++        conn.execute("PRAGMA query_only=ON")
+         cursor = conn.cursor()
+         cursor.execute(sql)
+         col_names = [desc[0] for desc in cursor.description] if cursor.description else []

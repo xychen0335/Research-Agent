@@ -3,11 +3,13 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 STREAMLIT_BIN=${STREAMLIT_BIN:-}
-if [[ -z "${STREAMLIT_BIN}" ]] && command -v streamlit >/dev/null; then
+if [[ -z "${STREAMLIT_BIN}" ]] && [[ -x "${ROOT}/.venv-ui/bin/streamlit" ]]; then
+  STREAMLIT_BIN="${ROOT}/.venv-ui/bin/streamlit"
+elif [[ -z "${STREAMLIT_BIN}" ]] && command -v streamlit >/dev/null; then
   STREAMLIT_BIN=$(command -v streamlit)
-elif [[ -z "${STREAMLIT_BIN}" ]] && [[ -x "${ROOT}/upstream/verl/.venv/bin/streamlit" ]]; then
-  STREAMLIT_BIN="${ROOT}/upstream/verl/.venv/bin/streamlit"
 fi
-[[ -n "${STREAMLIT_BIN}" ]] || { echo "Install requirements-ui.txt first." >&2; exit 1; }
+[[ -n "${STREAMLIT_BIN}" ]] || { echo "Run scripts/setup_ui.sh first." >&2; exit 1; }
 cd "${ROOT}"
-exec "${STREAMLIT_BIN}" run app.py "${@}"
+exec "${STREAMLIT_BIN}" run app.py \
+  --server.address "${STREAMLIT_ADDRESS:-127.0.0.1}" \
+  "${@}"

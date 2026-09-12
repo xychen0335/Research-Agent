@@ -1,9 +1,15 @@
 .venv/
+.venv-ui/
 __pycache__/
 *.pyc
 .env
 outputs/
 data/generated/
 data/processed/
+data/raw/
+data/splits/
+data/databases/
 checkpoints/
+exports/
+models/
 upstream/

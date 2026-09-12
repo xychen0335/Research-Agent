@@ -1,43 +1,44 @@
 # AgenticRL SQL Lab
 
-这是一个面向大模型 Agent 算法岗位的可运行项目骨架。它将 BIRD-RL 的 SQL 任务、Qwen3.5-4B、当前 verl 训练框架和一个 Streamlit 展示应用串成同一条实验链路，目标是比较 Base、SFT、SFT + GRPO 在多轮 SQL 工具调用上的效果。
+这是一个面向大模型 Agent 算法岗位的完整项目。它以 Qwen3.5-4B 为底座，复用 BIRD-RL 的多轮 SQL 任务设计和 verl 训练框架，比较 Base、LoRA SFT、SFT + GRPO 三组模型，并用 Streamlit 对话界面和实验看板展示真实工具轨迹与执行结果。
 
-当前仓库已完成数据转换、只读 SQL 环境、单卡训练脚本、checkpoint 导出、批量评测、对话界面和历史看板。本机已通过 10 项 CPU 测试。模型训练和显存参数需要在 AutoDL A100 80GB 上实测，仓库不包含虚构 checkpoint 或指标。
+仓库已经包含数据下载与确定性划分、只读 SQLite 工具、SFT 和 GRPO 脚本、checkpoint 导出、批量评测、对话界面及历史看板。数据版本与 A100 环境已经固定，详见 [DATA_ENVIRONMENT.md](DATA_ENVIRONMENT.md)。GPU 训练尚未执行，仓库不包含虚构 checkpoint 或指标。
 
-完整的研究问题、对照实验和求职展示设计见 [PROJECT_PLAN.md](PROJECT_PLAN.md)。
-
-## 系统结构
+## 项目结构
 
 ```mermaid
 flowchart LR
-    D[BIRD JSON + SQLite] --> P[数据转换]
-    P --> S[LoRA SFT]
+    D[BIRD train] --> X[按数据库划分]
+    X --> T[正确教师轨迹]
+    T --> S[LoRA SFT]
     S --> R[多轮 GRPO]
     B[Qwen3.5-4B Base] --> S
-    B --> E[统一评测]
+    B --> E[冻结 mini-dev 评测]
     S --> E
     R --> E
-    E --> O[JSONL 轨迹]
-    O --> U[Streamlit 对话与看板]
+    E --> U[对话与实验看板]
 ```
 
-多轮 RL 使用原生 tool calling。每个样本只把问题、schema、字段说明和 `db_id` 交给策略；参考 SQL 只进入独立奖励函数。`execute_sql` 使用 SQLite 只读 URI、`query_only` 和 authorizer。自定义 `BirdSqlAgentLoop` 在 `submit_solution` 后立即结束，避免继续生成无效轮次。
+策略只读取问题、schema、字段说明、`db_id` 和工具返回。参考 SQL 只进入隔离奖励函数。`execute_sql` 使用 SQLite 只读 URI、`query_only`、authorizer 和超时；`submit_solution` 会立即结束 episode。
 
-## 上游版本
+研究问题、消融实验和六周实施计划见 [PROJECT_PLAN.md](PROJECT_PLAN.md)。
 
-两套上游代码已克隆到本地 `upstream/`，但不提交进主仓库。固定版本保存在 [configs/upstreams.json](configs/upstreams.json)：
+## 固定版本
 
-| 依赖 | 固定 revision |
+| 组件 | 版本 |
 |---|---|
+| BIRD 训练记录 | `birdsql/bird23-train-filtered@40684698`，6,601 条 |
+| 冻结测试 | `birdsql/bird_mini_dev@f65faf4a`，500 条 |
 | BIRD-RL | `b26c4285ef69dfb6c096b076a7499018c6b370ca` |
 | verl | `10db40d0da4d59150bb389960b77585f81a89b8d` |
-| 模型 | `Qwen/Qwen3.5-4B` |
+| 模型 | `Qwen/Qwen3.5-4B@851bf6e8` |
+| 训练节点 | Ubuntu 24.04、A100 80GB、driver 580+、Python 3.12、CUDA 13.0 |
 
-[scripts/setup_autodl.sh](scripts/setup_autodl.sh) 会重建上游目录并按 verl 的 `uv.lock` 安装训练依赖。BIRD-RL 源码通过 `PYTHONPATH` 加载，因为该仓库没有 Python 安装清单。
+机器可读配置位于 [configs/data.json](configs/data.json)、[configs/upstreams.json](configs/upstreams.json) 和 [configs/environment.json](configs/environment.json)。
 
 ## 本地验证
 
-本地 smoke test 只依赖 Python 标准库：
+CPU 检查只依赖 Python 标准库：
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -45,66 +46,48 @@ python3 -m sql_agent.demo
 python3 -m sql_agent.run --help
 ```
 
-自建的四道 SQLite 题用于验证工具协议、gold 隔离、执行评分、超时和只读限制，不代表 BIRD 指标。
+自建的四道 SQLite 题用于验证工具协议、gold 隔离、评分、超时和只读限制，不代表 BIRD 指标。
 
-## AutoDL 环境
+## AutoDL 初始化
 
-把仓库同步到 A100 80GB 实例后运行：
+选择 Ubuntu 24.04、A100 80GB 且 NVIDIA driver 580 或更新的实例，将仓库放在持久盘后运行：
 
 ```bash
 bash scripts/setup_autodl.sh
+bash scripts/download_assets.sh
 ```
 
-脚本把 GPU 信息与实际版本写入 `outputs/setup/`。训练命令都从固定的 verl 目录通过 `uv run` 启动。模型和 BIRD 数据应放在持久盘，密钥只通过环境变量传入。
+第一条命令检出固定上游 commit，应用 [BIRD-RL 只读补丁](patches/bird-rl-readonly.patch)，使用 verl 的固定 `uv.lock` 建立 Python 3.12 训练环境，并把检查结果写入 `outputs/setup/`。第二条命令下载固定 BIRD 数据、SQLite 数据库和 Qwen 模型，生成以下划分：
 
-## BIRD 数据约定
+| 划分 | 数量 |
+|---|---:|
+| SFT train 来源池 | 1,500 |
+| SFT validation 来源池 | 150 |
+| GRPO train | 2,000 |
+| GRPO validation | 200 |
+| 冻结 mini-dev | 500 |
 
-仓库不重新分发 BIRD 数据。输入 JSON 或 JSONL 的每条记录至少需要：
+训练集和验证集按 `db_id` 隔离。划分 seed 为 `20260911`，具体数据库清单写入 `data/splits/split_manifest.json`。首次下载后提交生成的 `data/SHA256SUMS`，用于核对数据库归档快照。
 
-```json
-{
-  "question_id": 1,
-  "db_id": "database_name",
-  "question": "natural language question",
-  "evidence": "optional evidence",
-  "SQL": "reference SQL"
-}
-```
+## 生成 SFT 轨迹
 
-数据库目录结构为：
-
-```text
-databases/
-└── database_name/
-    └── database_name.sqlite
-```
-
-`column_meaning.json` 使用 BIRD-RL 的 `db_id|table|column` 键格式。训练集和验证集必须按数据库划分，不能把同一数据库放进两边。
-
-先生成 RL 数据：
+先为训练来源池生成教师轨迹：
 
 ```bash
-export BIRD_TRAIN_JSON=/root/data/bird/train.json
-export BIRD_VAL_JSON=/root/data/bird/val.json
-export BIRD_DB_DIR=/root/data/bird/databases
-export BIRD_COLUMN_MEANING=/root/data/bird/column_meaning.json
-bash scripts/prepare_bird_data.sh
-```
-
-输出是 verl 可直接读取的 JSONL，位于 `data/processed/`。转换器也支持 `.parquet`，该格式需要 `datasets` 和 `pyarrow`。
-
-## SFT 轨迹
-
-SFT 只使用执行评测正确的教师轨迹。可先调用 BIRD-RL 的多轮推理流程：
-
-```bash
-export TEACHER_MODEL_PATH=/root/models/teacher
-export BIRD_DATA_JSON="$BIRD_TRAIN_JSON"
-export OUTPUT_DIR="$PWD/outputs/teacher-train"
+OUTPUT_DIR="$PWD/outputs/teacher-train" \
+BIRD_DATA_JSON="$PWD/data/splits/sft_train.json" \
 bash scripts/generate_teacher_trajectories.sh
 ```
 
-用独立验证 split 再运行一次并改写 `OUTPUT_DIR`。然后指定两组最终轨迹和评测文件：
+再为验证来源池运行一次：
+
+```bash
+OUTPUT_DIR="$PWD/outputs/teacher-val" \
+BIRD_DATA_JSON="$PWD/data/splits/sft_val.json" \
+bash scripts/generate_teacher_trajectories.sh
+```
+
+BIRD-RL 的输出目录名称以实际运行结果为准。把两组最终轨迹和评测文件传给转换脚本：
 
 ```bash
 export BIRD_SFT_TRAJECTORIES="$PWD/outputs/teacher-train/trajectories/traj_5.jsonl"
@@ -114,85 +97,110 @@ export BIRD_SFT_VAL_EVALUATION="$PWD/outputs/teacher-val/eval_results.json"
 bash scripts/prepare_bird_data.sh
 ```
 
-转换器把 BIRD-RL 的 XML 轨迹改成 Qwen 原生 `tool_calls` 消息，并保留工具观察作为 `tool` 消息。错误轨迹不会进入 SFT 文件。
+转换器只保留执行评测正确的教师轨迹，并转成 Qwen 原生 `tool_calls` 消息。它同时生成 verl RL 文件、冻结评测任务和 tokenizer 长度报告。任何 RL prompt 超过 8,192 token 时会直接失败。
 
-## 单卡 LoRA SFT
+## LoRA SFT
+
+```bash
+bash scripts/train_qwen35_4b_sft.sh trainer.total_training_steps=1 trainer.save_freq=1
+```
+
+单步检查通过后，运行正式 SFT：
 
 ```bash
 bash scripts/train_qwen35_4b_sft.sh
 ```
 
-默认配置为 LoRA rank 32、alpha 64、micro batch 1、全局 batch 4、训练 1 epoch。Qwen3.5 使用 Gated Delta Networks，脚本按当前 verl 示例关闭 remove padding 和 dynamic batch。若发生 OOM，先减小 `data.max_token_len_per_gpu` 和样本上下文，再调整 offload，不要静默丢弃超长样本。
-
-训练完成后导出最后一个 `global_step_*`：
+默认参数为 LoRA rank 32、alpha 64、全局 batch 4、micro batch 1、最大序列 8,192 token、1 epoch。LoRA 覆盖语言模型的线性层并排除视觉模块。训练结束后导出 adapter：
 
 ```bash
-export CHECKPOINT_DIR="$PWD/checkpoints/qwen35-4b-bird-sft/global_step_100"
+export CHECKPOINT_DIR="$PWD/checkpoints/qwen35-4b-bird-sft/global_step_N"
 export TARGET_DIR="$PWD/exports/qwen35-4b-bird-sft"
 bash scripts/export_checkpoint.sh
 ```
 
-LoRA adapter 位于 `$TARGET_DIR/lora_adapter`。具体 step 以 `latest_checkpointed_iteration.txt` 为准。
+导出的 adapter 位于 `$TARGET_DIR/lora_adapter`。
 
-## 单卡多轮 GRPO
+## 多轮 GRPO
 
-GRPO 从 SFT adapter 继续训练，SFT adapter 同时定义初始策略。训练样本通过自定义 AgentLoop 调用只读 SQL 工具，奖励使用 BIRD-RL 的执行结果评分。
+GRPO 从 SFT adapter 继续更新同一组 LoRA 参数：
 
 ```bash
 export LORA_ADAPTER_PATH="$PWD/exports/qwen35-4b-bird-sft/lora_adapter"
-export BIRD_DB_DIR=/root/data/bird/databases
+export BIRD_DB_DIR="$PWD/data/databases/train"
+bash scripts/train_qwen35_4b_grpo.sh \
+  trainer.total_training_steps=1 trainer.save_freq=1 trainer.test_freq=1
+```
+
+单步检查通过后，去掉覆盖参数开始正式训练：
+
+```bash
 bash scripts/train_qwen35_4b_grpo.sh
 ```
 
-默认每题采样 4 条轨迹，全局问题 batch 为 4，上下文上限 8192，响应上限 4096。Actor 和 reference 参数启用 CPU offload，rollout 的显存比例设为 0.55。这些值是 A100 80GB 的保守起点，尚未在当前 Mac 上运行。先用命令行覆盖 `trainer.total_training_steps=1` 完成一次更新，再开始正式训练：
+默认每题采样 4 条轨迹，全局问题 batch 为 4，prompt 上限 8,192，response 上限 4,096。Actor 和 reference 使用 CPU offload，rollout 显存比例为 0.55。正式参数需要根据单步试跑的峰值显存、吞吐和截断统计调整。
 
-```bash
-bash scripts/train_qwen35_4b_grpo.sh trainer.total_training_steps=1 trainer.save_freq=1 trainer.test_freq=1
-```
+GRPO checkpoint 导出时，`CHECKPOINT_DIR` 指向 `global_step_N/actor`。导出的 adapter 包含 SFT 后继续训练的状态。
 
-GRPO checkpoint 导出时，`CHECKPOINT_DIR` 指向 `global_step_N/actor`。导出的 `lora_adapter` 已包含从 SFT 继续更新后的 adapter 状态。
+## 推理与冻结评测
 
-## 批量评测
-
-启动模型服务：
+启动一个模型服务：
 
 ```bash
 # Base
 SERVED_NAME=base PORT=8000 bash scripts/serve_qwen35_4b.sh
 
-# SFT。另开进程或顺序重启单卡服务
-SERVED_NAME=sft PORT=8001 LORA_PATH=/path/to/sft/lora_adapter bash scripts/serve_qwen35_4b.sh
+# SFT
+SERVED_NAME=sft PORT=8001 \
+LORA_PATH="$PWD/exports/qwen35-4b-bird-sft/lora_adapter" \
+bash scripts/serve_qwen35_4b.sh
 
 # SFT + GRPO
-SERVED_NAME=sft-rl PORT=8002 LORA_PATH=/path/to/rl/lora_adapter bash scripts/serve_qwen35_4b.sh
+SERVED_NAME=sft-rl PORT=8002 \
+LORA_PATH="$PWD/exports/qwen35-4b-bird-grpo/lora_adapter" \
+bash scripts/serve_qwen35_4b.sh
 ```
 
-单张 GPU 通常顺序加载三组模型。分别修改 [configs/models.json](configs/models.json) 的端口，运行固定任务，并保留输出：
+单卡通常顺序加载三组模型。每次启动对应服务后运行同一冻结任务：
 
 ```bash
 SQL_AGENT_BASE_URL=http://127.0.0.1:8000/v1 \
-python3 -m sql_agent.run --model base --tasks data/generated/tasks.jsonl
+python3 -m sql_agent.run \
+  --model base \
+  --profile base \
+  --tasks data/processed/bird_mini_dev_tasks.jsonl \
+  --output outputs/eval/base.jsonl
 ```
 
-每条 JSONL 包含最终 SQL、评分、完整工具消息、接口原始响应、token 用量、耗时和模型标识。接口没有返回 token 用量时保留 `null`。
+对 SFT 和 SFT + GRPO 修改 endpoint、模型名和输出路径。每条结果保存最终 SQL、评分、工具消息、token 用量、耗时和原始接口响应。最终公开指标需再用固定 BIRD evaluator 复核。
+
+将本地结果转换成 BIRD-RL 原生 trajectory，并用只读补丁后的固定 evaluator 计算 EX：
+
+```bash
+bash scripts/evaluate_bird_run.sh \
+  outputs/eval/base.jsonl \
+  outputs/eval/base.bird-eval.json
+```
+
+对三组模型分别执行。评测脚本要求 500 个 `instance_idx` 完整且唯一；未提交 SQL 的样本按错误处理，并保存逐题结果。
 
 ## 对话界面与看板
 
+看板使用独立环境：
+
 ```bash
-python3 -m pip install -r requirements-ui.txt
+bash scripts/setup_ui.sh
 bash scripts/run_dashboard.sh
 ```
 
-界面包含三个标签页：
+界面包含三个视图：
 
-- `SQL 对话`：选择模型，自由提问，显示最终 SQL、真实查询结果和工具轨迹。自由问题没有 gold，界面显示“无标签”。
-- `模型对比`：在同一固定题目上分别调用 Base、SFT、SFT + GRPO，三组运行互不共享轨迹。
-- `实验看板`：读取 `outputs/**/*.jsonl`，汇总准确率、平均工具调用、耗时和任务级结果。
+- `SQL 对话` 在数据准备后列出 mini-dev 的 11 个只读数据库；选择数据库和模型后可自由提问，并显示最终 SQL、查询结果及工具轨迹。自由问题没有 gold，只显示执行状态。
+- `模型对比` 对同一固定任务分别调用 Base、SFT、SFT + GRPO，各组不会共享轨迹。
+- `实验看板` 读取 `outputs/**/*.jsonl`，汇总准确率、平均工具调用、耗时和任务级结果。
 
-默认配置假设三个服务分别监听 8000、8001、8002。若只有一张 GPU，可以顺序运行并用看板比较历史结果；实时三列对比要求对应 endpoint 同时可用。
+[configs/models.json](configs/models.json) 默认使用 8000、8001、8002 三个端口。只有一张 GPU 时，可以顺序完成评测，再用看板比较历史结果。
 
-## Git 维护
+## Git 与产物
 
-主仓库跟踪适配代码、配置、文档和测试。`upstream/`、数据、checkpoint、输出和密钥被 `.gitignore` 排除。更新上游时先修改 [configs/upstreams.json](configs/upstreams.json) 与 setup 脚本中的 revision，再在独立分支完成单步 SFT 和单步 GRPO 回归。
-
-推荐提交顺序为数据适配、训练配置、评测界面、实验结果。实际训练结果和大模型权重放在外部存储，仓库只提交小型指标文件、环境版本和可复现的运行配置。
+主仓库跟踪适配代码、配置、文档和测试。`upstream/`、数据、模型、checkpoint 和输出不进入 Git。提交格式遵循 `feat / fix / chore / docs / refactor + 中文说明`。

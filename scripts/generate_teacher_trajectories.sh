@@ -2,11 +2,12 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-: "${TEACHER_MODEL_PATH:?Set TEACHER_MODEL_PATH to a local or Hugging Face model}"
-: "${BIRD_DATA_JSON:?Set BIRD_DATA_JSON to the training split used for trajectory generation}"
-: "${BIRD_DB_DIR:?Set BIRD_DB_DIR to the matching database directory}"
-: "${BIRD_COLUMN_MEANING:?Set BIRD_COLUMN_MEANING to column_meaning.json}"
+TEACHER_MODEL_PATH=${TEACHER_MODEL_PATH:-${ROOT}/models/Qwen3.5-4B-851bf6e8}
+BIRD_DATA_JSON=${BIRD_DATA_JSON:-${ROOT}/data/splits/sft_train.json}
+BIRD_DB_DIR=${BIRD_DB_DIR:-${ROOT}/data/databases/train}
+BIRD_COLUMN_MEANING=${BIRD_COLUMN_MEANING:-${ROOT}/data/raw/bird23-train-filtered/column_meaning.json}
 OUTPUT_DIR=${OUTPUT_DIR:-${ROOT}/outputs/teacher-trajectories}
+[[ -d "${TEACHER_MODEL_PATH}" ]] || { echo "Missing TEACHER_MODEL_PATH=${TEACHER_MODEL_PATH}" >&2; exit 1; }
 
 export PYTHONPATH="${ROOT}/upstream/BIRD-RL:${PYTHONPATH:-}"
 if [[ -d "${ROOT}/upstream/verl/.venv/bin" ]]; then

@@ -67,14 +67,14 @@ class Episode:
             return {"error": "Episode already submitted"}
         if not isinstance(arguments, dict):
             return {"error": "Tool arguments must be an object"}
-        if name == "submit_sql":
+        if name in {"submit_solution", "submit_sql"}:
             sql = arguments.get("sql")
             if not isinstance(sql, str) or not sql.strip():
                 return {"error": "Provide a nonempty sql string"}
             self.final_sql = sql
             return {"submitted": True}
         if self.calls >= self.max_calls:
-            return {"error": "Tool budget exhausted; submit_sql now"}
+            return {"error": "Tool budget exhausted; submit_solution now"}
         self.calls += 1
         try:
             if name == "get_schema":

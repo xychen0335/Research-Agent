@@ -22,10 +22,9 @@ class RolloutTests(unittest.TestCase):
             # Equivalent SQL with different syntax makes gold leakage detectable.
             prediction = "SELECT SUM(amount) FROM orders WHERE status='paid' AND substr(created_at,1,4)='2025'"
             outputs = iter([
-                response("get_schema", {}, "call1"),
-                response("execute_sql", {"sql": "SELECT bad_column FROM orders"}, "call2"),
-                response("execute_sql", {"sql": prediction}, "call3"),
-                response("submit_sql", {"sql": prediction}, "call4"),
+                response("execute_sql", {"sql": "SELECT bad_column FROM orders"}, "call1"),
+                response("execute_sql", {"sql": prediction}, "call2"),
+                response("submit_solution", {"sql": prediction}, "call3"),
             ])
             payloads = []
 
@@ -38,12 +37,16 @@ class RolloutTests(unittest.TestCase):
             with patch("sql_agent.run.completion", side_effect=mock_completion):
                 result = rollout(task, args)
             self.assertTrue(result["score"]["correct"])
-            self.assertEqual(result["tool_calls"], 3)
-            self.assertEqual(len(result["usage"]), 4)
+            self.assertEqual(result["tool_calls"], 2)
+            self.assertEqual(len(result["usage"]), 3)
             for payload in payloads:
                 self.assertNotIn(task["gold_sql"], json.dumps(payload))
                 self.assertFalse(payload["chat_template_kwargs"]["enable_thinking"])
-            self.assertIn("error", payloads[2]["messages"][-1]["content"])
+                self.assertEqual(
+                    [tool["function"]["name"] for tool in payload["tools"]],
+                    ["execute_sql", "submit_solution"],
+                )
+            self.assertIn("error", payloads[1]["messages"][-1]["content"])
 
 
 if __name__ == "__main__":

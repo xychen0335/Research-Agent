@@ -18,7 +18,7 @@ mkdir -p "${ROOT}/outputs"
 nvidia-smi > "${ROOT}/outputs/gpu.txt"
 "$(dirname "${VLLM_BIN}")/python" -m pip freeze > "${ROOT}/outputs/inference-packages.txt"
 
-MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3.5-4B}
+MODEL_PATH=${MODEL_PATH:-${ROOT}/models/Qwen3.5-4B-851bf6e8}
 SERVED_NAME=${SERVED_NAME:-base}
 PORT=${PORT:-8000}
 
@@ -27,7 +27,6 @@ if [[ -n "${LORA_PATH:-}" ]]; then
   LORA_ARGS=(--enable-lora --lora-modules "${SERVED_NAME}=${LORA_PATH}")
 fi
 
-# Candidate configuration; validate on the target A100 before locking versions.
 exec "${VLLM_BIN}" serve "${MODEL_PATH}" \
   --served-model-name "${SERVED_NAME}" \
   --host 127.0.0.1 \
@@ -36,6 +35,7 @@ exec "${VLLM_BIN}" serve "${MODEL_PATH}" \
   --max-model-len 8192 \
   --max-num-seqs 4 \
   --gpu-memory-utilization 0.8 \
+  --language-model-only \
   --reasoning-parser qwen3 \
   --enable-auto-tool-choice \
   --tool-call-parser qwen3_coder \

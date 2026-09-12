@@ -24,6 +24,15 @@ def demo_tasks():
     return [json.loads(line) for line in task_file.read_text(encoding="utf-8").splitlines()]
 
 
+@st.cache_resource
+def benchmark_tasks():
+    path = Path("data/processed/bird_mini_dev_tasks.jsonl")
+    if not path.exists():
+        return demo_tasks(), "本地 smoke tasks"
+    rows = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    return rows, "冻结 BIRD mini-dev"
+
+
 @st.cache_data(ttl=5)
 def history():
     return load_runs("outputs")
@@ -49,7 +58,7 @@ def render_result(result, show_score=True):
     if result.get("prediction"):
         st.code(result["prediction"], language="sql")
     else:
-        st.error("模型没有调用 submit_sql。")
+        st.error("模型没有调用 submit_solution。")
     query_result = result.get("query_result")
     if query_result:
         st.dataframe(pd.DataFrame(query_result["rows"], columns=query_result["columns"]), use_container_width=True)
@@ -71,6 +80,19 @@ def render_result(result, show_score=True):
 
 profiles = load_profiles()
 tasks = demo_tasks()
+compare_tasks, compare_source = benchmark_tasks()
+database_rows = compare_tasks if compare_source == "冻结 BIRD mini-dev" else tasks
+chat_databases = []
+seen_databases = set()
+for row in database_rows:
+    database = row["database"]
+    if database not in seen_databases:
+        seen_databases.add(database)
+        chat_databases.append({
+            "id": row.get("db_id") or row["id"],
+            "db_id": row.get("db_id"),
+            "database": database,
+        })
 labels = {profile["label"]: name for name, profile in profiles.items()}
 chat_tab, compare_tab, dashboard_tab = st.tabs(["SQL 对话", "模型对比", "实验看板"])
 
@@ -78,15 +100,21 @@ with chat_tab:
     left, main = st.columns([1, 2])
     with left:
         label = st.selectbox("模型", list(labels), key="chat_model")
-        selected_task = st.selectbox("示例数据库", tasks, format_func=lambda row: row["id"])
+        selected_database = st.selectbox("只读数据库", chat_databases, format_func=lambda row: row["id"])
+        st.caption("数据库来源：" + compare_source)
         with st.expander("数据库 schema"):
             from sql_agent.environment import SQLDatabase
-            st.json(SQLDatabase(selected_task["database"]).schema())
+            st.json(SQLDatabase(selected_database["database"]).schema())
     with main:
         question = st.chat_input("输入一个关于示例数据库的问题")
         if question:
             st.chat_message("user").write(question)
-            task = {"id": "interactive", "question": question, "database": selected_task["database"]}
+            task = {
+                "id": "interactive",
+                "db_id": selected_database.get("db_id"),
+                "question": question,
+                "database": selected_database["database"],
+            }
             try:
                 with st.chat_message("assistant"), st.spinner("模型正在探索数据库"):
                     name = labels[label]
@@ -98,7 +126,13 @@ with chat_tab:
                 st.error("模型服务调用失败：" + str(exc))
 
 with compare_tab:
-    task = st.selectbox("冻结题目", tasks, format_func=lambda row: row["question"], key="compare_task")
+    st.caption("任务来源：" + compare_source)
+    task = st.selectbox(
+        "对比题目",
+        compare_tasks,
+        format_func=lambda row: "%s · %s · %s" % (row.get("id"), row.get("db_id", "demo"), row["question"]),
+        key="compare_task",
+    )
     chosen = st.multiselect("对比模型", list(labels), default=list(labels))
     if st.button("运行独立对比", type="primary", disabled=not chosen):
         columns = st.columns(len(chosen))
@@ -130,6 +164,8 @@ with dashboard_tab:
         for row in records:
             rows.append({
                 "profile": row.get("profile") or row.get("model"), "task_id": row.get("task_id"),
+                "db_id": row.get("db_id"),
+                "difficulty": row.get("difficulty"),
                 "correct": (row.get("score") or {}).get("correct"), "tool_calls": row.get("tool_calls"),
                 "elapsed_seconds": row.get("elapsed_seconds"), "prediction": row.get("prediction"),
                 "source": "%s:%s" % (row.get("source_file"), row.get("source_line")),

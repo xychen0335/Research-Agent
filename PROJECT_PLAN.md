@@ -2,7 +2,7 @@
 
 项目面向大模型 Agent 算法岗位，以 BIRD-RL 为代码基础、Qwen3.5-4B 为模型底座、verl 为训练框架，完成 SFT、多轮 GRPO 和可交互的效果展示。核心实验问题是：在相同数据、工具和推理预算下，多轮 RL 能否提高 SQL 任务成功率，并改善执行反馈纠错行为。
 
-交付物是一套可复现训练配置、Base/SFT/SFT+RL 模型产物、独立评测报告，以及一个同时支持实时对话和实验对比的应用。本文中的样本量、超参数、资源和工期均为拟定起点，尚无真实训练结果。外部依赖信息以 2026-09-11 查阅的一手资料为依据，版本组合需要在 AutoDL 实例验证。
+交付物是一套可复现训练配置、Base/SFT/SFT+RL 模型产物、独立评测报告，以及一个同时支持实时对话和实验对比的应用。数据、模型 revision 和训练环境已经固定，实施真值见 [DATA_ENVIRONMENT.md](DATA_ENVIRONMENT.md)。超参数、资源占用和工期仍是拟定起点，尚无真实 GPU 训练结果。
 
 用户已有 AIGC、多模态微调和腾讯 QQ 团队实习经历。这个项目补充在线 RL、训练环境设计和实验分析经验；简历中应将其列为独立项目，使用实际测得的结果。
 
@@ -14,8 +14,8 @@
 | 底座 | Qwen/Qwen3.5-4B 官方后训练权重 | 适配模板、工具解析与 checkpoint |
 | 训练 | verl；LoRA SFT + 多轮 GRPO | 配置单卡训练，验证模型及适配器同步 |
 | 模型服务 | vLLM | 提供统一模型推理接口 |
-| 应用接口 | FastAPI | 统一管理会话、任务执行、轨迹与评测记录 |
-| 界面 | Streamlit + Plotly | 对话、模型对比、指标图表和轨迹回放 |
+| 应用接口 | OpenAI compatible API + 本地 runner | 管理工具循环、任务执行、轨迹与评测记录 |
+| 界面 | Streamlit | 对话、模型对比、指标图表和轨迹回放 |
 | 存储 | JSONL/Parquet + SQLite 元数据 | 保存实验结果和可追溯的运行标识 |
 | 计算 | AutoDL 单张 A100 80GB | 顺序执行训练、批量评测和在线演示 |
 
@@ -29,7 +29,7 @@
 
 主任务使用 BIRD 公开训练集；调试扩展参考 BIRD-RL 指向的 SIX-GYM-SQLite 训练数据与 BIRD-CRITIC-SQLite。两类任务各自使用匹配的数据格式、工具和评分器，分别报告指标。来源见 [BIRD 数据入口](https://bird-bench.github.io/)与 [BIRD-RL 数据说明](https://github.com/bird-bench/BIRD-RL)。
 
-先在 BIRD 训练集内部按数据库划分训练与验证，固定随机种子和样本清单，再生成轨迹。同一问题的改写、纠错变体和多条轨迹保持在同一划分。约 500-1,000 条验证通过的多轮轨迹用于 SFT，约 1,000-2,000 个训练问题用于 RL，约 200 个验证问题用于调参。实际数量取决于可用数据和首次运行吞吐。
+训练记录固定为 `birdsql/bird23-train-filtered@40684698` 的 6,601 条数据。内部划分使用 seed `20260911`，按数据库隔离训练池和验证池。SFT 来源池为 1,500 条训练记录和 150 条验证记录，实际 SFT 数量由正确教师轨迹数决定。GRPO 使用 2,000 条训练记录和 200 条验证记录。划分算法、清单和数据下载方式见 [DATA_ENVIRONMENT.md](DATA_ENVIRONMENT.md)。
 
 最终评测使用冻结的 BIRD mini-dev，开发时不根据其中的个案调整提示词、奖励或训练数据。界面内置演示集从单独的展示数据中选择；若展示最终评测样本，必须在冻结实验后进行。自由输入的用户问题没有标准答案，界面只报告执行状态和结果，不显示“回答正确”。
 
@@ -113,7 +113,7 @@ SFT checkpoint 作为 RL 初始策略及 KL 参考。如果采用 LoRA，必须�
 
 建议事件类型为 queued、model_started、tool_called、tool_result、sql_submitted、evaluation_finished、failed。模型接口未提供 token 用量时记录 null，不能填 0。敏感认证信息不进入事件或模型响应存档。
 
-FastAPI 提供创建会话、启动任务、读取事件、查询实验结果和读取模型清单的接口。Streamlit 根据 run_id 增量轮询事件，首版不依赖复杂 WebSocket 基础设施。模型服务只负责生成，Agent runner 负责工具调度，评分器独立运行；UI 无权向 Agent 注入 gold。
+vLLM 提供 OpenAI compatible API，Agent runner 负责工具调度和记录，评分器在 rollout 结束后独立运行。Streamlit 调用 runner 并读取 JSONL 历史结果；UI 无权向 Agent 注入 gold。
 
 7. **演示故事与验收标准**
 

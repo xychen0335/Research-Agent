@@ -11,9 +11,13 @@ class HistoryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "run.jsonl"
             rows = [
-                {"profile": "base", "score": {"correct": False}, "tool_calls": 2, "elapsed_seconds": 1},
-                {"profile": "base", "score": {"correct": True}, "tool_calls": 4, "elapsed_seconds": 3},
-                {"profile": "rl", "score": None, "tool_calls": 1, "elapsed_seconds": 2},
+                {"profile": "base", "model": "base", "prediction": "SELECT 0",
+                 "score": {"correct": False}, "tool_calls": 2, "elapsed_seconds": 1},
+                {"profile": "base", "model": "base", "prediction": "SELECT 1",
+                 "score": {"correct": True}, "tool_calls": 4, "elapsed_seconds": 3},
+                {"profile": "rl", "model": "rl", "prediction": "SELECT 1",
+                 "score": None, "tool_calls": 1, "elapsed_seconds": 2},
+                {"instance_idx": 0, "trajectory": []},
             ]
             path.write_text("".join(json.dumps(row) + "\n" for row in rows))
             summary = {row["profile"]: row for row in summarize(load_runs(directory))}

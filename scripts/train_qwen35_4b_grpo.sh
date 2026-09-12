@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 VERL_ROOT="${ROOT}/upstream/verl"
-MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3.5-4B}
+MODEL_PATH=${MODEL_PATH:-${ROOT}/models/Qwen3.5-4B-851bf6e8}
 : "${LORA_ADAPTER_PATH:?Set LORA_ADAPTER_PATH to the exported SFT adapter directory}"
 : "${BIRD_DB_DIR:?Set BIRD_DB_DIR to the BIRD database directory}"
 TRAIN_FILE=${TRAIN_FILE:-${ROOT}/data/processed/bird_rl_train.jsonl}
@@ -12,11 +12,14 @@ SAVE_DIR=${SAVE_DIR:-${ROOT}/checkpoints/qwen35-4b-bird-grpo}
 ROLLOUT_N=${ROLLOUT_N:-4}
 TOTAL_EPOCHS=${TOTAL_EPOCHS:-2}
 ACTOR_LR=${ACTOR_LR:-3e-6}
+LORA_RANK=${LORA_RANK:-32}
+LORA_ALPHA=${LORA_ALPHA:-64}
 
 [[ -f "${TRAIN_FILE}" ]] || { echo "Missing TRAIN_FILE=${TRAIN_FILE}" >&2; exit 1; }
 [[ -f "${VAL_FILE}" ]] || { echo "Missing VAL_FILE=${VAL_FILE}" >&2; exit 1; }
 [[ -d "${LORA_ADAPTER_PATH}" ]] || { echo "Missing LORA_ADAPTER_PATH=${LORA_ADAPTER_PATH}" >&2; exit 1; }
 command -v nvidia-smi >/dev/null || { echo "Requires an NVIDIA GPU." >&2; exit 1; }
+[[ -d "${MODEL_PATH}" ]] || { echo "Missing pinned model at MODEL_PATH=${MODEL_PATH}" >&2; exit 1; }
 
 export PYTHONPATH="${ROOT}:${ROOT}/upstream/BIRD-RL:${VERL_ROOT}:${PYTHONPATH:-}"
 export BIRD_DB_DIR
@@ -31,14 +34,18 @@ uv run --frozen --all-packages --extra vllm --extra fsdp python3 -m verl.trainer
   data.train_batch_size=4 \
   data.max_prompt_length=8192 \
   data.max_response_length=4096 \
-  data.filter_overlong_prompts=True \
+  data.filter_overlong_prompts=False \
   data.filter_overlong_prompts_workers=2 \
   data.truncation=error \
-  reward.custom_reward_function.path="${ROOT}/upstream/BIRD-RL/bird_rl/rewards/bird_reward_agentic.py" \
+  reward.custom_reward_function.path="${ROOT}/agenticrl/bird_reward.py" \
   reward.custom_reward_function.name=compute_score \
   reward.num_workers=4 \
   actor_rollout_ref.model.path="${MODEL_PATH}" \
   actor_rollout_ref.model.lora_adapter_path="${LORA_ADAPTER_PATH}" \
+  actor_rollout_ref.model.lora_rank="${LORA_RANK}" \
+  actor_rollout_ref.model.lora_alpha="${LORA_ALPHA}" \
+  actor_rollout_ref.model.target_modules=all-linear \
+  actor_rollout_ref.model.exclude_modules='.*visual.*' \
   actor_rollout_ref.model.use_remove_padding=False \
   actor_rollout_ref.model.enable_gradient_checkpointing=True \
   actor_rollout_ref.actor.optim.lr="${ACTOR_LR}" \
@@ -91,4 +98,6 @@ uv run --frozen --all-packages --extra vllm --extra fsdp python3 -m verl.trainer
   trainer.save_freq=10 \
   trainer.test_freq=10 \
   trainer.total_epochs="${TOTAL_EPOCHS}" \
+  trainer.seed=20260911 \
+  ray_kwargs.ray_init.runtime_env.py_executable="uv -v run --python 3.12 --frozen --all-packages --extra vllm --extra fsdp" \
   "${@}"

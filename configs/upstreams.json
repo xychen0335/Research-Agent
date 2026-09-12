@@ -7,5 +7,8 @@
     "url": "https://github.com/verl-project/verl.git",
     "commit": "10db40d0da4d59150bb389960b77585f81a89b8d"
   },
-  "model": "Qwen/Qwen3.5-4B"
+  "model": {
+    "repo_id": "Qwen/Qwen3.5-4B",
+    "revision": "851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a"
+  }
 }
