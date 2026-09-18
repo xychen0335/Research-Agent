@@ -16,13 +16,19 @@
 
 ## 运维
 
+- miniconda 管理环境，输出 requirements.txt。（仅在无 conda 时，降级为 uv）
 - 使用 git 维护。
 - commit 采用：feat / fix / chore / docs / refactor + 中文说明
 
 ## 当前方向（2026-09-18）
 
-- 用户已决定删除旧 SQL Agent 骨架，不继续扩展 BIRD 路线。
 - 当前方案以 `docs/research/PLAN.md` 为准：公开科研资料检索、证据阅读、多轮 SFT 与 RL。
 - Tongyi DeepResearch 用作交互设计和教师候选；训练后端拟用 verl，兼容性必须实测。
-- 腾讯 AutoTraining 仅作为经历背景。本独立项目使用公开数据，不复制企业代码或运行记录。
+- 腾讯 AutoTraining 作为应用场景与接口衔接目标，当前尚未生产接入。本独立项目使用公开数据，不复制企业代码或运行记录。
 - 计划、CPU 验证和真实 GPU 训练结果必须分别说明。
+
+- 训练、评测与部署共用 Research harness，模型比较固定 harness，工程改动单独消融。
+- 优先并发工具交互与同步更新；完整异步 RL 由性能剖析决定，并验证策略版本与数据滞后。
+
+- 代码目录遵循 `docs/research/CODE_STRUCTURE.md`；业务逻辑集中在 `research_agent/`，脚本仅负责启动。
+- 训练、评测和教师采样复用同一 harness；verl 适配集中在 `research_agent/training/verl/`。
