@@ -1,0 +1,6 @@
+# Hydra list consumed by verl AgentLoopWorker:
+#   actor_rollout_ref.rollout.agent.agent_loop_config_path=configs/training/verl_agent_loop.yaml
+#   actor_rollout_ref.rollout.agent.default_agent_loop=research_agent
+# `_target_` must be the module-level class. Nested factories are not importable.
+- name: research_agent
+  _target_: research_agent.training.verl.agent_loop.VerlResearchAgentLoop

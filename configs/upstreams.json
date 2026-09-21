@@ -1,0 +1,29 @@
+{
+  "note": "Pin commits after a measured GPU run. These URLs were read as main on 2026-09-19 and are not vendored.",
+  "upstreams": [
+    {
+      "name": "Search-R1",
+      "url": "https://github.com/PeterGriffinJin/Search-R1",
+      "commit": null,
+      "use": "search/generation loop and retrieval isolation"
+    },
+    {
+      "name": "Tongyi DeepResearch",
+      "url": "https://github.com/Alibaba-NLP/DeepResearch",
+      "commit": null,
+      "use": "ReAct tool_call format and inference entry layout"
+    },
+    {
+      "name": "verl",
+      "url": "https://github.com/verl-project/verl",
+      "commit": null,
+      "use": "Training framework. This repo registers VerlResearchAgentLoop and compute_score; GRPO is verl.trainer.main_ppo. AgentLoopOutput fields checked against master on 2026-09-20."
+    },
+    {
+      "name": "PaperSearchQA",
+      "url": "https://huggingface.co/datasets/jmhb/PaperSearchQA",
+      "commit": "563d32ebcf5a8081ed67abe4f7afe0ae614be1e1",
+      "license": "MIT for the QA set per Hub README"
+    }
+  ]
+}
