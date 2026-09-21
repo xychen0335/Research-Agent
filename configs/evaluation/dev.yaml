@@ -1,0 +1,6 @@
+tasks: synthetic-dev
+splits: [dev]
+metrics: [answer_em, legal_citation_rate, evidence_support, mean_explore_calls]
+cost_curve_budgets: [2, 4, 6]
+frozen: false
+note: This is a development probe, not a frozen test report.

@@ -1,0 +1,16 @@
+tasks: papersearchqa-dev
+splits: [train]
+limit: 8
+frozen_task_ids:
+  - psqa-train-22767133-00000
+  - psqa-train-2907195-00001
+  - psqa-train-23978423-00002
+  - psqa-train-33601653-00003
+  - psqa-train-11498412-00004
+  - psqa-train-29949800-00005
+  - psqa-train-24171837-00006
+  - psqa-train-25261884-00007
+metrics: [answer_em, legal_citation_rate, evidence_support, mean_explore_calls]
+cost_curve_budgets: [2, 4, 6]
+frozen: true
+note: Mini freeze of the 8 train ids used for the Ollama Qwen3.5-4B Base probe. Not a 16M PubMed freeze and not a test-split freeze.
