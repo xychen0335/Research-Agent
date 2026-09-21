@@ -1,0 +1,3 @@
+name: scripted
+policy: scripted
+note: CPU harness verification only. Not a model baseline.

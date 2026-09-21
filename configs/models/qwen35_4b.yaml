@@ -1,0 +1,9 @@
+name: qwen3.5-4b
+huggingface_id: Qwen/Qwen3.5-4B
+ollama_id: qwen3.5:4b
+revision: unverified
+serving: ollama
+base_url: http://127.0.0.1:11434/v1
+max_tokens: 1024
+temperature: 0.7
+note: Ollama 4B Q4_K_M is a local Base probe. HuggingFace + verl remain the training target. Ollama uses native tools then converts to XML for the shared harness.

@@ -1,0 +1,7 @@
+name: qwen3.5-9b-teacher
+ollama_id: qwen3.5:9b
+role: teacher
+student: qwen3.5:4b
+max_tokens: 1024
+temperature: 0.7
+note: Stronger teacher than the 4B student. Local GGUF, not Tongyi DeepResearch. Traces still go through the shared harness and offline grader.
