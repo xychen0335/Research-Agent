@@ -1,0 +1,4 @@
+source: synthetic-dev
+environment_id: synthetic-dev
+n_tasks_target: 32
+note: Official PaperSearchQA and the 16M PubMed index are not downloaded in this tree.

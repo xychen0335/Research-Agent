@@ -1,0 +1,18 @@
+{
+  "id": "boostnet-demo",
+  "title": "BoostNet: mixing data and splits",
+  "abstract": "BoostNet reports 4.2 points over SyncRet. The comparison also replaced ExtraMix-2M with BoostSplit.",
+  "full_text": {
+    "paragraphs": [
+      ["The 4.2 point gain is not an isolated architecture effect."],
+      ["SyncRet used ExtraMix-2M; BoostNet used BoostSplit."]
+    ]
+  },
+  "qas": [
+    {
+      "question": "What extra data change accompanied BoostNet's 4.2 point gain over SyncRet?",
+      "question_id": "q-boostsplit",
+      "answers": [{"free_form_answer": "BoostSplit replaced ExtraMix-2M"}]
+    }
+  ]
+}

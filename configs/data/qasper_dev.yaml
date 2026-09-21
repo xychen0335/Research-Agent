@@ -1,0 +1,4 @@
+source: qasper
+split: test
+input: tests/fixtures/qasper_mini.json
+note: Single-paper computer-science fixture for conversion tests. Not a QASPER official score and not a retrieval benchmark.

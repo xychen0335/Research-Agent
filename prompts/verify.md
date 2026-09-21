@@ -1,0 +1,1 @@
+You verify a research QA item. Given the question, proposed answer, and evidence paragraphs, return JSON with keys supported (boolean), issues (array of strings), and revised_answer (string or null). Mark supported false if the paragraphs do not contain the answer, if required conditions are missing, or if the question is ambiguous. Do not use outside knowledge.
