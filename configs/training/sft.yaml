@@ -1,0 +1,15 @@
+method: lora_sft
+base: Qwen/Qwen3.5-4B
+teacher_jsonl: outputs/teacher-qwen35-9b/sft_short.jsonl
+output_dir: outputs/sft
+lora_rank: 16
+lora_alpha: 32
+learning_rate: 2.0e-4
+epochs: 1
+max_seq_len: 8192
+micro_batch_size: 1
+max_steps: 20
+min_teacher_rows: 16
+loss: assistant_tokens_only
+status: not_run
+note: Hyperparameters are a single-card starting point. Do not treat this file as a completed recipe.

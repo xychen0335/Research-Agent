@@ -1,0 +1,10 @@
+name: gpu-mini
+data: configs/data/papersearchqa_dev.yaml
+harness: configs/harness/default.yaml
+sft: configs/training/sft.yaml
+grpo: configs/training/grpo.yaml
+verl: configs/training/verl_grpo.yaml
+eval: configs/evaluation/base_mini.yaml
+model: configs/models/qwen35_4b.yaml
+status: not_run
+note: Single-card A100 starting point. SFT is LoRA in-repo; GRPO is verl.trainer.main_ppo. Do not report this file as a completed GPU run.

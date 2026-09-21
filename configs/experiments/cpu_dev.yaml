@@ -1,0 +1,7 @@
+name: cpu-dev
+data: configs/data/synthetic_dev.yaml
+harness: configs/harness/default.yaml
+model: configs/models/scripted.yaml
+eval: configs/evaluation/dev.yaml
+status: cpu_harness
+gpu_training: not_run
