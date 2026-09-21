@@ -79,6 +79,22 @@ class HuggingFacePolicy:
                 is_trainable=self._trainable_adapter,
             )
             self.policy_version = f"{self.policy_version}+lora"
+        elif self._trainable_adapter:
+            from peft import LoraConfig, TaskType, get_peft_model
+
+            if hasattr(self._model, "enable_input_require_grads"):
+                self._model.enable_input_require_grads()
+            self._model = get_peft_model(
+                self._model,
+                LoraConfig(
+                    task_type=TaskType.CAUSAL_LM,
+                    r=16,
+                    lora_alpha=32,
+                    lora_dropout=0.05,
+                    target_modules=["q_proj", "k_proj", "v_proj", "o_proj"],
+                ),
+            )
+            self.policy_version = f"{self.policy_version}+lora"
         self._model.to(device)
         self._model.eval()
 

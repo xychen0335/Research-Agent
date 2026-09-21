@@ -236,7 +236,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
         assert "reward.custom_reward_function.name=compute_score" in argv
         assert "research_agent.training.grpo" not in joined
         assert "Qwen/Qwen3.5-4B" in joined
-        adapter_argv = verl_main_ppo_argv(root=Path.cwd(), adapter="/tmp/sft-adapter")
+        adapter_argv = verl_main_ppo_argv(root=Path.cwd(), adapter="/tmp/lora-adapter")
         assert any(item.startswith("+actor_rollout_ref.model.lora_adapter_path=") for item in adapter_argv)
         overrides = hydra_overrides(raw, root=Path.cwd())
         model_path = next(item for item in overrides if item.startswith("actor_rollout_ref.model.path="))

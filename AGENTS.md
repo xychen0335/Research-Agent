@@ -23,8 +23,8 @@
 
 ## 当前方向（2026-09-18）
 
-- 当前方案以 `docs/research/PLAN.md` 为准：公开科研资料检索、证据阅读、多轮 SFT 与 RL。
-- Tongyi DeepResearch 用作交互设计和教师候选；训练后端拟用 verl，兼容性必须实测。
+- 当前方案以 `docs/research/PLAN.md` 为准：公开科研资料检索、证据阅读、从 Base 直接 GRPO。
+- Tongyi DeepResearch 用作交互设计参考；训练对齐 PaperSearchQA / Search-R1 的 RLVR。训练后端拟用 verl，兼容性必须实测。
 - 腾讯 AutoTraining 作为应用场景与接口衔接目标，当前尚未生产接入。本独立项目使用公开数据，不复制企业代码或运行记录。
 - 计划、CPU 验证和真实 GPU 训练结果必须分别说明。
 
@@ -32,4 +32,4 @@
 - 优先并发工具交互与同步更新；完整异步 RL 由性能剖析决定，并验证策略版本与数据滞后。
 
 - 代码目录遵循 `docs/research/CODE_STRUCTURE.md`；业务逻辑集中在 `research_agent/`，脚本仅负责启动。
-- 训练、评测和教师采样复用同一 harness；verl 是训练框架，本仓库只在 `research_agent/training/verl/` 放 Agent Loop 与 reward 插件。
+- 训练与评测复用同一 harness；verl 是训练框架，本仓库只在 `research_agent/training/verl/` 放 Agent Loop 与 reward 插件。

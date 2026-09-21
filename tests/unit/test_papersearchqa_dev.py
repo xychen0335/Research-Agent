@@ -1,10 +1,9 @@
 import json
 from unittest.mock import patch
 
-from research_agent.contracts import Budget, TaskInput
 from research_agent.data.prepare import prepare_papersearchqa_dev
-from research_agent.data.sources.papersearchqa import attach_abstracts, convert_papersearchqa_rows, sample_indices
-from research_agent.data.teacher import generate_teacher_traces
+from research_agent.data.sources.papersearchqa import attach_abstracts, sample_indices
+from research_agent.training.grpo import GRPOConfig, _collect_groups
 from research_agent.models.scripted import ScriptedPolicy, tool_call
 
 from tests.support import HarnessAsyncTestCase
@@ -82,29 +81,23 @@ class TestPapersearchqaDev(HarnessAsyncTestCase):
         assert splits.count("test") == 2
         assert prepared.report["validation"]["ok"] is True
 
-    async def test_teacher_skips_test_split(self):
-        train = TaskInput(
-            request_id="t",
-            task_id="t",
-            question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
-            split="train",
-            budget=Budget(),
-        )
-        test = TaskInput(
-            request_id="x",
-            task_id="x",
-            question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
-            split="test",
-            budget=Budget(),
-        )
+    async def test_grpo_skips_test_split(self):
+        from dataclasses import replace
+
         from research_agent.grading.contracts import GradingSpec
 
-        specs = {
-            "t": GradingSpec(task_id="t", answer="nope"),
-            "x": GradingSpec(task_id="x", answer="nope"),
-        }
-        model = ScriptedPolicy({train.question: [tool_call("submit", {"answer": "nope", "citations": []})]})
-        samples = await generate_teacher_traces([train, test], specs, model, self.tools)
-        assert [item.record.task.split for item in samples] == ["train"]
+        tasks, specs, tools = self.prepared_stack
+        task = next(item for item in tasks if item.public_id() == "bio-001")
+        test_task = replace(task, split="test")
+        model = ScriptedPolicy(
+            {task.question: [tool_call("submit", {"answer": "wrong", "citations": []})]},
+            policy_version="grpo-skip-test",
+        )
+        groups = await _collect_groups(
+            [test_task, task],
+            {task.public_id(): specs[task.public_id()], test_task.public_id(): GradingSpec(task_id=test_task.public_id(), answer="nope")},
+            model,
+            tools,
+            GRPOConfig(max_prompts=8, group_size=1),
+        )
+        assert [group["task_id"] for group in groups] == [task.public_id()]

@@ -19,18 +19,17 @@ class TestDashboard(TempDirTestCase):
         assert ghost.get("answer_em") is None
         assert all(item.get("answer_em") is None for item in payload["runs"] if item["unrun"])
 
-    def test_planned_sft_and_grpo_are_unrun(self):
+    def test_planned_grpo_is_unrun(self):
         client = TestClient(create_app(self.tmp_path / "outputs"))
         payload = client.get("/api/runs").json()
         ids = {item["run_id"] for item in payload["runs"]}
-        assert "sft-qwen35-4b" in ids
         assert "grpo-qwen35-4b" in ids
-        sft = client.get("/api/runs/sft-qwen35-4b").json()
-        assert sft["unrun"] is True
-        assert sft["metrics"] is None
-        assert sft["answer_em"] is None
-        assert "LoRA SFT" in (sft.get("note") or "")
-        assert "门槛" in (sft.get("note") or "")
+        assert "sft-qwen35-4b" not in ids
+        grpo = client.get("/api/runs/grpo-qwen35-4b").json()
+        assert grpo["unrun"] is True
+        assert grpo["metrics"] is None
+        assert grpo["answer_em"] is None
+        assert "GRPO 未运行" in (grpo.get("note") or "")
 
     def test_index_serves_html(self):
         client = TestClient(create_app(self.tmp_path / "outputs"))

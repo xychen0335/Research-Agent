@@ -46,6 +46,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
         n_test=args.n_test,
         n_distractors=args.n_distractors,
         seed=args.seed,
+        with_pubmed_corpus=args.with_pubmed_corpus,
     )
     print(json.dumps(prepared.report, ensure_ascii=False, indent=2))
     return 0 if prepared.report.get("validation", {}).get("ok", False) else 1
@@ -70,7 +71,6 @@ def _select_tasks(
 
 
 def cmd_eval(args: argparse.Namespace) -> int:
-    from research_agent.data.prepare import prepare_synthetic_dev
     from research_agent.evaluation.baselines import run_baseline
     from research_agent.evaluation.runner import run_evaluation, snapshot_from_dir
     from research_agent.evaluation.snapshot import write_run_snapshot
@@ -78,7 +78,16 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
     prepared_dir = Path(args.data)
     if not (prepared_dir / "public" / "tasks.jsonl").exists():
-        prepare_synthetic_dev(prepared_dir)
+        if prepared_dir.name in {"synthetic-dev", "synthetic_dev"}:
+            from research_agent.data.prepare import prepare_synthetic_dev
+
+            prepare_synthetic_dev(prepared_dir)
+        else:
+            raise SystemExit(
+                f"missing prepared data at {prepared_dir}. "
+                "Run: python -m research_agent.cli prepare --source papersearchqa "
+                "--with-pubmed-corpus --output data/processed/papersearchqa"
+            )
     tasks, specs, tools = snapshot_from_dir(prepared_dir)
     eval_cfg = _load_yaml(Path(args.eval_config)) if args.eval_config else {}
     frozen_ids = list(eval_cfg.get("frozen_task_ids") or [])
@@ -146,7 +155,6 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 def cmd_run(args: argparse.Namespace) -> int:
     from research_agent.contracts import TOOL_SEARCH, TOOL_SUBMIT, TaskInput, to_plain
-    from research_agent.data.prepare import prepare_synthetic_dev
     from research_agent.environment.corpus import CorpusSnapshot
     from research_agent.environment.tools import ToolEnvironment
     from research_agent.harness.loop import run_episode
@@ -155,13 +163,22 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     prepared_dir = Path(args.data)
     if not (prepared_dir / "public" / "corpus.jsonl").exists():
-        prepare_synthetic_dev(prepared_dir)
+        if prepared_dir.name in {"synthetic-dev", "synthetic_dev"}:
+            from research_agent.data.prepare import prepare_synthetic_dev
+
+            prepare_synthetic_dev(prepared_dir)
+        else:
+            raise SystemExit(
+                f"missing prepared corpus at {prepared_dir}. "
+                "Run: python -m research_agent.cli prepare --source papersearchqa "
+                "--with-pubmed-corpus --output data/processed/papersearchqa"
+            )
     corpus = CorpusSnapshot.from_jsonl(prepared_dir / "public" / "corpus.jsonl")
     tools = ToolEnvironment(corpus)
     task = TaskInput(
         request_id=args.request_id,
         question=args.question,
-        environment_id="synthetic-dev",
+        environment_id=prepared_dir.name,
         budget=_budget_from_cfg(_load_yaml(Path(args.harness)) if args.harness else {}),
     )
     if args.model == "scripted":
@@ -236,18 +253,24 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
 
     prepare = sub.add_parser("prepare", help="Build public tasks, corpus, and private grading files")
-    prepare.add_argument("--source", default="synthetic-dev")
+    prepare.add_argument("--source", default="papersearchqa")
     prepare.add_argument("--input")
-    prepare.add_argument("--split", default="dev")
-    prepare.add_argument("--output", default="data/processed/synthetic-dev")
+    prepare.add_argument("--split", default="train")
+    prepare.add_argument("--output", default="data/processed/papersearchqa")
     prepare.add_argument("--n-train", dest="n_train", type=int, default=40)
     prepare.add_argument("--n-test", dest="n_test", type=int, default=10)
     prepare.add_argument("--n-distractors", dest="n_distractors", type=int, default=40)
     prepare.add_argument("--seed", type=int, default=20260919)
+    prepare.add_argument(
+        "--with-pubmed-corpus",
+        dest="with_pubmed_corpus",
+        action="store_true",
+        help="Download the 16M PubMed dump (~23GB) into public/corpus.jsonl",
+    )
     prepare.set_defaults(func=cmd_prepare)
 
     evaluate = sub.add_parser("eval", help="Run a baseline or live policy through the shared harness")
-    evaluate.add_argument("--data", default="data/processed/synthetic-dev")
+    evaluate.add_argument("--data", default="data/processed/papersearchqa")
     evaluate.add_argument("--baseline", default="no_retrieval", choices=["no_retrieval", "fixed_rag", "agent"])
     evaluate.add_argument(
         "--policy",
@@ -270,7 +293,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     run = sub.add_parser("run", help="Run one question")
     run.add_argument("--question", required=True)
-    run.add_argument("--data", default="data/processed/synthetic-dev")
+    run.add_argument("--data", default="data/processed/papersearchqa")
     run.add_argument("--model", default="scripted")
     run.add_argument("--harness", default="configs/harness/default.yaml")
     run.add_argument("--request-id", dest="request_id", default="cli-request")
@@ -295,7 +318,7 @@ def build_parser() -> argparse.ArgumentParser:
     plan.set_defaults(func=cmd_plan_review)
 
     trained = sub.add_parser("eval-trained", help="Frozen eval of a LoRA adapter; missing weights stay not_run")
-    trained.add_argument("--data", default="data/processed/papersearchqa-dev")
+    trained.add_argument("--data", default="data/processed/papersearchqa")
     trained.add_argument("--eval-config", dest="eval_config", default="configs/evaluation/base_mini.yaml")
     trained.add_argument("--model-name", dest="model_name", default="Qwen/Qwen3.5-4B")
     trained.add_argument("--adapter", required=True)
@@ -305,8 +328,8 @@ def build_parser() -> argparse.ArgumentParser:
     trained.add_argument("--max-tokens", dest="max_tokens", type=int, default=1024)
     trained.add_argument("--base-url", dest="base_url", default=None)
     trained.add_argument("--oracle", action="store_true")
-    trained.add_argument("--run-id", dest="run_id", default="frozen-sft")
-    trained.add_argument("--output", default="outputs/frozen-sft")
+    trained.add_argument("--run-id", dest="run_id", default="frozen-grpo")
+    trained.add_argument("--output", default="outputs/frozen-grpo")
     trained.add_argument("--local-files-only", dest="local_files_only", action="store_true", default=True)
     trained.set_defaults(func=cmd_eval_trained, baseline="agent", policy="huggingface")
     return parser

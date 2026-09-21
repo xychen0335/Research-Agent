@@ -24,6 +24,12 @@
       "url": "https://huggingface.co/datasets/jmhb/PaperSearchQA",
       "commit": "563d32ebcf5a8081ed67abe4f7afe0ae614be1e1",
       "license": "MIT for the QA set per Hub README"
+    },
+    {
+      "name": "pubmed_bioasq_2022",
+      "url": "https://huggingface.co/datasets/jmhb/pubmed_bioasq_2022",
+      "commit": null,
+      "use": "16M PubMed abstract retrieval corpus for PaperSearchQA"
     }
   ]
 }

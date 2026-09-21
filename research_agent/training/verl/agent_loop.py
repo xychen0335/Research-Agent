@@ -326,7 +326,7 @@ def _data_dir_from_loop(loop: Any) -> str | None:
         value = _cfg_get(cfg, *keys)
         if value:
             return str(value)
-    default = Path("data/processed/papersearchqa-dev")
+    default = Path("data/processed/papersearchqa")
     if (default / "public" / "tasks.jsonl").exists():
         return str(default)
     return None

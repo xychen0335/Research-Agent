@@ -43,7 +43,7 @@ def f1_score(prediction: str, gold: str) -> float:
 def alias_span(prediction: str, spec: GradingSpec) -> str | None:
     """Return the shortest gold alias that appears as a whole-token span in the prediction.
 
-    Used to harvest short SFT targets from padded teacher submits. Evaluation still
+    Used to recover a gold alias from a padded prediction. Evaluation still
     uses exact match and does not award padded answers.
     """
     pred_norm = f" {normalize_answer(prediction)} "

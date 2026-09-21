@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GPU node mini-run: LoRA SFT, one GRPO update, then print the frozen-eval command.
+# GPU node mini-run: one GRPO update from the base model, then print the frozen-eval command.
 # Refuses to download Qwen3.5-4B. Exit 2 means not_run, not a fake zero score.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

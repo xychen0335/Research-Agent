@@ -19,7 +19,7 @@ IGNORE_INDEX = -100
 @dataclass
 class SFTConfig:
     base: str = "Qwen/Qwen3.5-4B"
-    teacher_jsonl: str = "outputs/teacher/sft.jsonl"
+    jsonl: str = "outputs/sft/messages.jsonl"
     output_dir: str = "outputs/sft"
     lora_rank: int = 16
     lora_alpha: int = 32
@@ -29,7 +29,7 @@ class SFTConfig:
     micro_batch_size: int = 1
     max_steps: int = 20
     allow_cpu: bool = False
-    min_teacher_rows: int = 16
+    min_rows: int = 16
 
 
 def load_sft_config(path: Path | None) -> SFTConfig:
@@ -96,7 +96,7 @@ def assistant_chat_labels(
     return full, labels
 
 
-def load_teacher_rows(path: Path) -> list[dict[str, Any]]:
+def load_sft_rows(path: Path) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     if not path.exists():
         return rows
@@ -248,19 +248,19 @@ def _persist(cfg: SFTConfig, result: dict[str, Any]) -> dict[str, Any]:
 
 def run_sft(cfg: SFTConfig) -> dict[str, Any]:
     report = write_report()
-    rows = load_teacher_rows(Path(cfg.teacher_jsonl))
+    rows = load_sft_rows(Path(cfg.jsonl))
     result: dict[str, Any] = {
         "status": "not_run",
-        "teacher_rows": len(rows),
-        "teacher_jsonl": cfg.teacher_jsonl,
+        "n_rows": len(rows),
+        "jsonl": cfg.jsonl,
         "compat": report,
         "loss": "assistant_tokens_only",
         "base": cfg.base,
     }
-    if len(rows) < cfg.min_teacher_rows:
+    if len(rows) < cfg.min_rows:
         result["error"] = (
-            f"only {len(rows)} teacher traces (need {cfg.min_teacher_rows}); "
-            "4B self-sampling is not a cold start"
+            f"only {len(rows)} SFT rows (need {cfg.min_rows}); "
+            "this optional LoRA path is not the default GRPO recipe"
         )
         return _persist(cfg, result)
     device = _select_device(cfg.allow_cpu)
@@ -286,13 +286,13 @@ def run_sft(cfg: SFTConfig) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="configs/training/sft.yaml")
-    parser.add_argument("--teacher", default=None)
+    parser.add_argument("--jsonl", default=None)
     parser.add_argument("--output", default=None)
     parser.add_argument("--allow-cpu", action="store_true")
     args = parser.parse_args(argv)
     cfg = load_sft_config(Path(args.config))
-    if args.teacher:
-        cfg.teacher_jsonl = args.teacher
+    if args.jsonl:
+        cfg.jsonl = args.jsonl
     if args.output:
         cfg.output_dir = args.output
     cfg.allow_cpu = bool(args.allow_cpu or cfg.allow_cpu)

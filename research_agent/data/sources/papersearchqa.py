@@ -18,6 +18,8 @@ from typing import Any, Iterable
 
 SOURCE_URL = "https://huggingface.co/datasets/jmhb/PaperSearchQA"
 CORPUS_URL = "https://huggingface.co/datasets/jmhb/pubmed_bioasq_2022"
+CORPUS_REPO = "jmhb/pubmed_bioasq_2022"
+CORPUS_JSONL = "data/corpus/pubmed.jsonl"
 LICENSE = "MIT (QA set, per Hub README); PubMed corpus derived from allMeSH/BioASQ 2022"
 HF_REVISION = "563d32ebcf5a8081ed67abe4f7afe0ae614be1e1"
 SPLIT_SIZES = {"train": 54907, "test": 5000}
@@ -111,10 +113,12 @@ def _rows_from_table(table, indices: list[int]) -> list[dict[str, Any]]:
     return rows
 
 
-def load_parquet_rows(path: Path, indices: list[int]) -> list[dict[str, Any]]:
+def load_parquet_rows(path: Path, indices: list[int] | None = None) -> list[dict[str, Any]]:
     import pyarrow.parquet as pq
 
     table = pq.read_table(path)
+    if indices is None:
+        indices = list(range(table.num_rows))
     return _rows_from_table(table, indices)
 
 
@@ -142,9 +146,13 @@ def sample_indices(split: str, n: int, *, seed: int, exclude: set[int] | None = 
     return sorted(rng.sample(pool, n))
 
 
-def load_split_rows(split: str, indices: list[int], raw_dir: Path) -> tuple[list[dict[str, Any]], dict[str, str]]:
+def load_split_rows(
+    split: str,
+    indices: list[int] | None,
+    raw_dir: Path,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     parquet_path = raw_dir / PARQUET_FILES[split].replace("/", "_")
-    meta: dict[str, str] = {"path": str(parquet_path), "sha256": "", "loader": ""}
+    meta: dict[str, Any] = {"path": str(parquet_path), "sha256": "", "loader": "", "n_rows": 0}
     try:
         if not parquet_path.exists():
             meta["sha256"] = download_parquet(split, parquet_path)
@@ -152,10 +160,17 @@ def load_split_rows(split: str, indices: list[int], raw_dir: Path) -> tuple[list
             meta["sha256"] = hashlib.sha256(parquet_path.read_bytes()).hexdigest()
         rows = load_parquet_rows(parquet_path, indices)
         meta["loader"] = "parquet"
+        meta["n_rows"] = len(rows)
+        expected = SPLIT_SIZES[split]
+        if indices is None and len(rows) != expected:
+            meta["row_count_note"] = f"expected {expected}, got {len(rows)}"
         return rows, meta
     except Exception:
+        if indices is None:
+            raise
         rows = fetch_hf_rows(split, indices)
         meta["loader"] = "datasets-server"
+        meta["n_rows"] = len(rows)
         return rows, meta
 
 
@@ -178,3 +193,88 @@ def attach_abstracts(
         enriched["fetched_title"] = abs_row.get("title") or ""
         kept.append(enriched)
     return kept, excluded
+
+
+def convert_pubmed_record(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Map a PubMed dump row into the local corpus schema."""
+    pmid = str(raw.get("pmid") or raw.get("id") or raw.get("docid") or "").strip()
+    pmid = pmid.removeprefix("pmid:").removeprefix("PMID:")
+    title = str(raw.get("title") or "").strip()
+    abstract = str(raw.get("abstract") or raw.get("text") or "").strip()
+    contents = str(raw.get("contents") or raw.get("content") or "").strip()
+    if not abstract and contents:
+        if title and contents.startswith(title):
+            abstract = contents[len(title) :].lstrip(" .")
+        elif not title and ". " in contents[:240]:
+            title, _, abstract = contents.partition(". ")
+        else:
+            abstract = contents
+    if not pmid or not (abstract or title):
+        return None
+    return {
+        "doc_id": f"pmid:{pmid}",
+        "title": title,
+        "paragraphs": [abstract or title],
+        "source": f"pmid:{pmid}",
+        "version": "pubmed-bioasq-2022",
+        "metadata": {"pmid": pmid, "corpus": CORPUS_URL},
+    }
+
+
+def download_pubmed_jsonl(dest: Path) -> str:
+    """Stream the official 16M abstract dump. About 23GB."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    url = f"https://huggingface.co/datasets/{CORPUS_REPO}/resolve/main/{CORPUS_JSONL}"
+    request = urllib.request.Request(url, headers={"User-Agent": "research-agent/0.1"})
+    hasher = hashlib.sha256()
+    with urllib.request.urlopen(request, timeout=600) as response, dest.open("wb") as handle:
+        while True:
+            chunk = response.read(1024 * 1024)
+            if not chunk:
+                break
+            handle.write(chunk)
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def stream_pubmed_corpus(
+    src: Path,
+    dest: Path,
+    *,
+    gold_documents: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Write the 16M dump into corpus.jsonl without loading it all into RAM."""
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    gold_documents = gold_documents or []
+    required = {str(doc["doc_id"]) for doc in gold_documents}
+    found: set[str] = set()
+    n_written = 0
+    with src.open("r", encoding="utf-8") as incoming, dest.open("w", encoding="utf-8") as outgoing:
+        for line in incoming:
+            line = line.strip()
+            if not line:
+                continue
+            rec = convert_pubmed_record(json.loads(line))
+            if rec is None:
+                continue
+            outgoing.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            n_written += 1
+            if rec["doc_id"] in required:
+                found.add(rec["doc_id"])
+        n_gold_in_dump = len(found)
+        n_appended = 0
+        for doc in gold_documents:
+            if doc["doc_id"] in found:
+                continue
+            outgoing.write(json.dumps(doc, ensure_ascii=False) + "\n")
+            n_written += 1
+            n_appended += 1
+            found.add(doc["doc_id"])
+    return {
+        "n_documents": n_written,
+        "n_gold": len(required),
+        "n_gold_in_dump": n_gold_in_dump,
+        "n_appended_gold": n_appended,
+        "source": str(src),
+        "output": str(dest),
+    }

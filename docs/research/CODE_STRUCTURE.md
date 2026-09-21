@@ -36,7 +36,7 @@ Research-Agent/
 │   │   └── trajectory.py             # 事件与轨迹序列化
 │   ├── models/
 │   │   ├── base.py                   # 生成接口及 token/logprob 返回契约
-│   │   ├── openai_compatible.py      # 教师、Ollama 与部署服务调用
+│   │   ├── openai_compatible.py      # Ollama 与部署服务调用
 │   │   ├── huggingface.py            # 本地 HF 生成，返回 token id 与 logprob
 │   │   └── factory.py                # 按名称装配策略，harness 不依赖后端
 │   ├── environment/
@@ -48,8 +48,7 @@ Research-Agent/
 │   │   ├── sources/                  # PaperSearchQA、QASPER 来源适配
 │   │   ├── prepare.py                # 格式转换、分块、划分、manifest
 │   │   ├── synthesize.py             # 证据出发的问题与评分依据合成
-│   │   ├── validate.py               # 去重、答案证据核验、泄露审计
-│   │   └── teacher.py                # 调用 harness 生成并筛选 SFT 轨迹
+│   │   └── validate.py               # 去重、答案证据核验、泄露审计
 │   ├── grading/
 │   │   ├── contracts.py              # 私有 GradingSpec、Score，与公共输入隔离
 │   │   ├── answers.py                # 答案归一化、别名与数据集评分协议
@@ -57,7 +56,7 @@ Research-Agent/
 │   │   └── reward.py                 # RL 奖励组合，复用上述评分函数
 │   ├── training/
 │   │   ├── export.py                 # 标准任务/轨迹转换为后端数据格式
-│   │   ├── sft.py                    # assistant-only LoRA SFT
+│   │   ├── sft.py                    # 可选 assistant-only LoRA，不是默认训练路径
 │   │   ├── grpo.py                   # 同题组采集与 clipped surrogate
 │   │   ├── compat.py                 # GPU / verl / vLLM 探测
 │   │   └── verl/
@@ -81,14 +80,14 @@ Research-Agent/
 │   ├── data/                         # 来源、划分、语料构建配置
 │   ├── harness/                      # 工具、上下文、预算、终止配置
 │   ├── models/                       # 模型 revision、服务位置、采样参数
-│   ├── training/                     # SFT、GRPO 后端配置
+│   ├── training/                     # GRPO 与可选 SFT 配置
 │   ├── evaluation/                   # 冻结任务与指标配置
 │   ├── experiments/                  # 组合上述配置的具名实验
 │   └── upstreams.json                # 仓库 URL、固定 commit、补丁清单
 ├── scripts/
 │   ├── setup/                        # 环境建立、依赖与设备检查
-│   ├── data/                         # 准备语料、合成、教师轨迹的薄入口
-│   ├── train/                        # SFT、GRPO、checkpoint 导出入口
+│   ├── data/                         # 准备语料、合成的薄入口
+│   ├── train/                        # GRPO、可选 SFT、checkpoint 导出入口
 │   └── eval/                         # 批量评测启动入口
 ├── apps/
 │   └── dashboard/                    # FastAPI 轨迹看板，读 outputs/ 事件
@@ -116,7 +115,7 @@ Research-Agent/
 - `environment/` 读取公开语料与索引，不读取答案、评分依据和训练奖励。工具返回不携带 gold 标记。
 - `grading/` 读取私有评分依据与完成轨迹，不向运行中的策略传回参考答案。目录隔离之外，输入装配也必须显式移除标签。
 - `training/verl/` 是 verl 的项目插件（Agent Loop + reward），不是第二个训练框架。调度、GRPO 更新和权重同步由 `verl.trainer.main_ppo` 执行；CPU 数据处理与普通推理无需加载 CUDA、Ray 或 verl。
-- `evaluation/runner.py` 和 `data/teacher.py` 调用同一个 `harness/loop.py`，再交给评分器；不各自实现搜索循环。
+- `evaluation/runner.py` 调用 `harness/loop.py`，再交给评分器；不另写搜索循环。
 - `integrations/` 和 `apps/` 消费公开结果与事件。AutoTraining 接入不直接操作梯度、奖励或私有标签。
 - `scripts/` 只处理启动、参数转发与进程环境；划分、奖励、工具执行逻辑必须在 Python 包内。
 
@@ -126,7 +125,6 @@ Research-Agent/
 | --- | --- |
 | 准备训练任务 | `data/sources → prepare → validate → data/` |
 | 合成新任务 | `corpus → synthesize → validate → 私有评分依据与公共任务分开存储` |
-| 教师 SFT | `data/teacher → harness → model + environment → grading → training/sft` |
 | GRPO 组采集（HF 回退） | `training/grpo.collect_group → harness → grading → export_grpo_group` |
 | GRPO 训练 | `verl.trainer.main_ppo → VerlResearchAgentLoop.run → harness → model_backend + environment` |
 | RL 评分更新 | `完成轨迹 → reward_adapter.compute_score → grading/reward → verl trainer` |
@@ -151,7 +149,7 @@ Research-Agent/
 
 1. 建公共契约、最小 harness、文档工具与 CPU 单测，使一条任务完成搜索、阅读、提交和事件落盘。
 2. 建来源适配、任务验证和评分器，再接模型服务，跑真实 Base 小基线。
-3. 建教师轨迹与训练格式导出，随后实现 verl adapter 与 GPU 单步验证。
+3. 接 verl adapter 与 GPU 单步验证。
 4. 建批量评测、科研案例、下游规划评测与看板。
 5. 测量性能后扩展并发与异步训练。
 

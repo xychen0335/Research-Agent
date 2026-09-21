@@ -33,7 +33,7 @@ class TestEpisode(HarnessAsyncTestCase):
         score = score_episode(result.records[0].result, specs["bio-001"], max_explore=6)
         assert score.answer_score == 0.0
 
-    async def test_same_harness_for_eval_and_teacher_messages(self):
+    async def test_same_harness_for_eval_and_planning(self):
         tasks, specs, tools = self.prepared_stack
         subset = [task for task in tasks if task.public_id() == "bio-001"]
         result = await run_baseline("agent", subset, specs, tools, run_id="h1", oracle=True)

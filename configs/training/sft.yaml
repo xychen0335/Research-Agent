@@ -1,6 +1,6 @@
 method: lora_sft
 base: Qwen/Qwen3.5-4B
-teacher_jsonl: outputs/teacher-qwen35-9b/sft_short.jsonl
+jsonl: outputs/sft/messages.jsonl
 output_dir: outputs/sft
 lora_rank: 16
 lora_alpha: 32
@@ -9,7 +9,7 @@ epochs: 1
 max_seq_len: 8192
 micro_batch_size: 1
 max_steps: 20
-min_teacher_rows: 16
+min_rows: 16
 loss: assistant_tokens_only
 status: not_run
-note: Hyperparameters are a single-card starting point. Do not treat this file as a completed recipe.
+note: Optional LoRA on a messages jsonl. Default training is GRPO from the base model, matching PaperSearchQA / Search-R1. Do not treat this file as a required cold start.

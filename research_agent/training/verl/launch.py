@@ -126,7 +126,7 @@ def run_verl_grpo(
         report["hint"] = "scripts/train/verl_grpo.sh"
         (out / "verl_grpo_report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         return report
-    prepared = Path(data_dir or os.environ.get("RESEARCH_AGENT_DATA", "data/processed/papersearchqa-dev"))
+    prepared = Path(data_dir or os.environ.get("RESEARCH_AGENT_DATA", "data/processed/papersearchqa"))
     exported = write_verl_files(prepared)
     report["dataset"] = exported
     if exported.get("status") != "wrote":

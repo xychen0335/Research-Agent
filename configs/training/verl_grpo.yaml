@@ -5,8 +5,8 @@ framework_entry: verl.trainer.main_ppo
 algorithm:
   adv_estimator: grpo
 data:
-  train_files: data/processed/papersearchqa-dev/public/verl_train.parquet
-  val_files: data/processed/papersearchqa-dev/public/verl_test.parquet
+  train_files: data/processed/papersearchqa/public/verl_train.parquet
+  val_files: data/processed/papersearchqa/public/verl_test.parquet
   return_raw_chat: true
   train_batch_size: 4
 actor_rollout_ref:
@@ -26,7 +26,7 @@ actor_rollout_ref:
     agent:
       default_agent_loop: research_agent
       agent_loop_config_path: configs/training/verl_agent_loop.yaml
-      data: data/processed/papersearchqa-dev
+      data: data/processed/papersearchqa
 reward:
   custom_reward_function:
     path: research_agent/training/verl/reward_adapter.py
@@ -40,5 +40,5 @@ trainer:
   project_name: research-agent
   experiment_name: gpu-mini
 research_agent:
-  data: data/processed/papersearchqa-dev
+  data: data/processed/papersearchqa
 note: Launch with scripts/train/verl_grpo.sh on a CUDA node that has verl installed. CPU machines must not run this entry.

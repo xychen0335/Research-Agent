@@ -224,7 +224,7 @@ DOCUMENTS: list[dict] = [
         "GRPO-Lite: group size and context for retrieval RL",
         [
             "GRPO-Lite fine-tunes a 4B policy with group relative policy optimization.",
-            "Each question samples four trajectories. The reference SFT policy is frozen.",
+            "Each question samples four trajectories. The reference is the frozen base policy.",
             "The context window during rollout is 8192 tokens. Observation tokens are loss-masked.",
             "With four trajectories, all-fail groups produce zero advantage and are logged separately.",
         ],
@@ -316,7 +316,7 @@ DOCUMENTS: list[dict] = [
         [
             "A constant 1e-6 LoRA learning rate is compared with cosine decay from 2e-6 to 1e-7.",
             "After 20 GRPO steps, cosine reaches 39.1% EM and constant reaches 38.7% on Probe-200.",
-            "Both runs use group size 4 and the same SFT initialization.",
+            "Both runs use group size 4 and start from the same base checkpoint.",
             "Variance across two seeds is 0.6 points, so the 0.4 point gap is not resolved.",
         ],
         "synthetic-cs-010",
@@ -327,7 +327,7 @@ DOCUMENTS: list[dict] = [
         "cs:tool-budget",
         "Accuracy versus exploration budget",
         [
-            "The same SFT policy is evaluated at 2, 4, and 6 exploration calls.",
+            "The same base policy is evaluated at 2, 4, and 6 exploration calls.",
             "Exact match is 31.0% at 2 calls, 36.4% at 4 calls, and 38.1% at 6 calls on Probe-200.",
             "Mean search calls at the 6-call cap is 2.4. Additional calls mostly repeat failed queries.",
             "The authors plot EM against budget and do not collapse the three settings into one number.",
@@ -338,12 +338,12 @@ DOCUMENTS: list[dict] = [
     ),
     _doc(
         "cs:sft-filter",
-        "Teacher trace filtering for retrieval SFT",
+        "GRPO group logging for retrieval RL",
         [
-            "Teacher traces are generated in the same harness used at deployment.",
-            "Traces are kept when the answer matches a golden alias and every citation was opened.",
-            "Of 800 sampled traces, 210 pass both filters. 40 of those include one failed search then recovery.",
-            "The teacher never sees gold labels; a separate grader reads them offline.",
+            "GRPO groups are collected in the same harness used at deployment.",
+            "A group is logged when every trajectory finishes under the tool budget.",
+            "Of 800 sampled groups, 210 have mixed success. 40 of those include one failed search then recovery.",
+            "Gold labels stay with the offline grader and are not shown to the policy.",
         ],
         "synthetic-cs-012",
         domain="cs",

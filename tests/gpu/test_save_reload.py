@@ -15,8 +15,8 @@ class TestSaveReload(TempDirTestCase):
             self.skipTest("CUDA not available; GPU update/save/reload is unverified")
         if not cached_hf_model("Qwen/Qwen3.5-4B"):
             self.skipTest("Qwen/Qwen3.5-4B is not on disk; refusing Hub download")
-        teacher = self.tmp_path / "sft.jsonl"
-        teacher.write_text(
+        rows = self.tmp_path / "sft.jsonl"
+        rows.write_text(
             '{"messages":[{"role":"system","content":"tools"},{"role":"user","content":"q"},'
             '{"role":"assistant","content":"<tool_call>{\\"name\\":\\"submit\\",\\"arguments\\":{\\"answer\\":\\"RB1\\",\\"citations\\":[]}}</tool_call>"}],'
             '"split":"train"}\n',
@@ -24,10 +24,10 @@ class TestSaveReload(TempDirTestCase):
         )
         cfg = SFTConfig(
             base="Qwen/Qwen3.5-4B",
-            teacher_jsonl=str(teacher),
+            jsonl=str(rows),
             output_dir=str(self.tmp_path / "sft"),
             max_steps=1,
-            min_teacher_rows=1,
+            min_rows=1,
             max_seq_len=256,
         )
         result = run_sft(cfg)

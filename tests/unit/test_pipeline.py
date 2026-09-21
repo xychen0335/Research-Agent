@@ -8,7 +8,6 @@ from tests.support import TempDirTestCase
 class TestPipeline(TempDirTestCase):
     def test_gpu_mini_refuses_without_device_or_weights(self):
         report = run_gpu_mini(
-            sft_config=Path("configs/training/sft.yaml"),
             grpo_config=Path("configs/training/grpo.yaml"),
             output_dir=self.tmp_path / "gpu-mini",
         )

@@ -40,11 +40,11 @@ class GRPOConfig:
     learning_rate: float = 1.0e-6
     max_prompts: int = 4
     max_updates: int = 1
-    data: str = "data/processed/papersearchqa-dev"
+    data: str = "data/processed/papersearchqa"
     output_dir: str = "outputs/grpo"
     policy: str = "huggingface"
     model_name: str = "Qwen/Qwen3.5-4B"
-    adapter: str = "outputs/sft/adapter"
+    adapter: str = ""
     backend: str = "auto"
 
 
@@ -305,7 +305,7 @@ def run_grpo(
         if not cached_hf_model(cfg.model_name):
             result["error"] = (
                 f"{cfg.model_name} weights are not on disk; Ollama cannot supply GRPO logprobs. "
-                "Load HF + LoRA on the GPU node after SFT."
+                "Load HF weights on the GPU node."
             )
             result["hint"] = "Ollama generations lack token logprobs and cannot update GRPO"
             (Path(cfg.output_dir)).mkdir(parents=True, exist_ok=True)
@@ -316,7 +316,7 @@ def run_grpo(
         model = load_policy(
             "huggingface",
             model_name=cfg.model_name,
-            adapter=cfg.adapter if Path(cfg.adapter).exists() else None,
+            adapter=cfg.adapter if cfg.adapter and Path(cfg.adapter).exists() else None,
             local_files_only=True,
             trainable_adapter=True,
         )

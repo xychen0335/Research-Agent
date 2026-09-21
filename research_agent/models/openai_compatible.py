@@ -1,4 +1,4 @@
-"""OpenAI-compatible teacher and serving backend.
+"""OpenAI-compatible serving backend (Ollama and HTTP APIs).
 
 API responses typically lack token IDs, so generations are marked unusable for RL updates.
 Ollama's OpenAI layer drops Qwen3.5 thinking into a side field and ignores `think: false`;

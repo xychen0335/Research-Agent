@@ -1,9 +1,13 @@
-# GPU extras. Do not treat these unpinned names as a measured Qwen3.5 stack.
-# Install on the training node, then record exact versions in outputs/gpu-mini/gpu_compat.json.
-# verl and vLLM are the training/rollout framework; they are not reimplemented in this repo.
+# GPU / Linux CUDA training stack. Do not install this file on a CPU laptop.
+# Exact CUDA / torch / vLLM versions are recorded by scripts/setup/check_env.py
+# after the first measured GPU run; these names are the install list, not a lockfile.
+#
+#   pip install -e ".[data,train]"
+#   bash scripts/setup/install_verl.sh
+#
 torch
-peft
-accelerate
-transformers
-# verl
-# vllm
+peft>=0.12
+accelerate>=0.34
+transformers>=4.45
+vllm
+verl @ git+https://github.com/verl-project/verl.git

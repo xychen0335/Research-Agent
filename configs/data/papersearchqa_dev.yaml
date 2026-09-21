@@ -4,4 +4,4 @@ n_train: 40
 n_test: 10
 n_distractors: 40
 seed: 20260919
-note: Subset with support abstracts plus distractors. Not the 16M PubMed index. Test split stays out of SFT and RL.
+note: Subset with support abstracts plus distractors. Not the 16M PubMed index. Test split stays out of RL.

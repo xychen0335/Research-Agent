@@ -1,5 +1,6 @@
 # CPU runtime. Versions are lower bounds, not a verified lockfile.
-# Qwen3.5-4B + verl + vLLM compatibility has not been measured.
+# Training stack (torch / vLLM / verl) lives in requirements-train.txt and
+# pyproject.toml [project.optional-dependencies] train. Do not put CUDA wheels here.
 fastapi>=0.115
 httpx>=0.27
 pydantic>=2.7

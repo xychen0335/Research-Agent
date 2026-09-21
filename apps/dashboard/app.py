@@ -29,12 +29,8 @@ SHOWCASE_LEFT = "cpu-oracle"
 SHOWCASE_RIGHT = "synth-no-retrieval"
 PLANNED_UNRUN = (
     {
-        "run_id": "sft-qwen35-4b",
-        "note": "LoRA SFT 未运行：31 条短答案教师轨迹已过门槛，但本机无 CUDA/HF 权重。",
-    },
-    {
         "run_id": "grpo-qwen35-4b",
-        "note": "GRPO 未运行：没有 SFT adapter，Ollama 生成不含 token logprob。",
+        "note": "GRPO 未运行：缺 CUDA、HF 权重或 verl。Ollama 生成不含 token logprob，不能更新。",
     },
 )
 

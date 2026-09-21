@@ -22,16 +22,17 @@ class TestAdapterReload(TempDirTestCase):
         policy = load_policy(
             "huggingface",
             model_name="Qwen/Qwen3.5-4B",
-            adapter="outputs/sft/adapter",
+            adapter=None,
             local_files_only=True,
             trainable_adapter=True,
         )
         assert policy._trainable_adapter is True
+        assert policy._adapter is None
         assert policy._local_files_only is True
         eval_policy = load_policy(
             "huggingface",
             model_name="Qwen/Qwen3.5-4B",
-            adapter="outputs/sft/adapter",
+            adapter="outputs/grpo/adapter",
             local_files_only=True,
         )
         assert eval_policy._trainable_adapter is False

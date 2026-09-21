@@ -34,7 +34,7 @@ class TestTraining(HarnessAsyncTestCase):
         cfg = load_sft_config(path)
         assert cfg.base == "Qwen/Qwen3.5-4B"
         assert cfg.max_steps == 3
-        assert cfg.min_teacher_rows == 16
+        assert cfg.min_rows == 16
 
     def test_select_frozen_ids_keeps_yaml_order(self):
         from research_agent.cli import _select_tasks
@@ -48,19 +48,19 @@ class TestTraining(HarnessAsyncTestCase):
         selected = _select_tasks(tasks, split="train", limit=None, frozen_ids=["a", "b"])
         assert [item.public_id() for item in selected] == ["a", "b"]
 
-    def test_run_sft_refuses_sparse_teacher(self):
+    def test_run_sft_refuses_sparse_jsonl(self):
         from research_agent.training.sft import SFTConfig, run_sft
 
-        teacher = self.tmp_path / "sft.jsonl"
-        teacher.write_text(
+        rows_path = self.tmp_path / "sft.jsonl"
+        rows_path.write_text(
             '{"messages":[{"role":"assistant","content":"x"}]}\n' * 3,
             encoding="utf-8",
         )
         result = run_sft(
-            SFTConfig(teacher_jsonl=str(teacher), output_dir=str(self.tmp_path / "out"), min_teacher_rows=16)
+            SFTConfig(jsonl=str(rows_path), output_dir=str(self.tmp_path / "out"), min_rows=16)
         )
         assert result["status"] == "not_run"
-        assert result["teacher_rows"] == 3
+        assert result["n_rows"] == 3
         assert "only 3" in result["error"]
 
     def test_group_advantages_zero_mean(self):

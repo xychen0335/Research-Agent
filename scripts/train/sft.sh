@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LoRA SFT entry. Starts only after teacher traces exist and a GPU/MPS device is present.
+# Optional LoRA SFT on a messages jsonl. Not part of the default GRPO path.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"

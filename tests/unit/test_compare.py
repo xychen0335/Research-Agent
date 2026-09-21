@@ -14,7 +14,7 @@ class TestCompare(TempDirTestCase):
             json.dumps({"answer_em": 0.5, "n": 8, "policy_version": "qwen3.5:4b", "harness_version": "h1"}) + "\n",
             encoding="utf-8",
         )
-        missing = self.tmp_path / "sft"
+        missing = self.tmp_path / "grpo"
         missing.mkdir()
         report = compare_frozen_runs([ran, missing])
         assert report["runs"][0]["status"] == "ran"
@@ -28,10 +28,10 @@ class TestCompare(TempDirTestCase):
     def test_eval_trained_refuses_missing_adapter(self):
         class Args:
             adapter = str(self.tmp_path / "no-adapter")
-            output = str(self.tmp_path / "frozen-sft")
+            output = str(self.tmp_path / "frozen-grpo")
 
         code = cmd_eval_trained(Args())
         assert code == 2
-        report = json.loads((self.tmp_path / "frozen-sft" / "report.json").read_text(encoding="utf-8"))
+        report = json.loads((self.tmp_path / "frozen-grpo" / "report.json").read_text(encoding="utf-8"))
         assert report["status"] == "not_run"
-        assert not (self.tmp_path / "frozen-sft" / "metrics.json").exists()
+        assert not (self.tmp_path / "frozen-grpo" / "metrics.json").exists()

@@ -110,6 +110,8 @@ def _finalize(
     grading: list[dict[str, Any]],
     documents: list[dict[str, Any]],
     extra_manifest: dict[str, Any],
+    *,
+    retrieval_audit: bool | None = None,
 ) -> PreparedData:
     output_dir.mkdir(parents=True, exist_ok=True)
     public_dir = output_dir / "public"
@@ -120,7 +122,7 @@ def _finalize(
     task_hash = _write_jsonl(public_dir / "tasks.jsonl", tasks)
     doc_hash = _write_jsonl(public_dir / "corpus.jsonl", documents)
     grade_hash = _write_jsonl(private_dir / "grading.jsonl", grading)
-    report = validate_prepared(tasks, grading, corpus)
+    report = validate_prepared(tasks, grading, corpus, retrieval_audit=retrieval_audit)
     manifest = {
         "source": source,
         "n_tasks": len(tasks),
@@ -239,9 +241,117 @@ def prepare_papersearchqa_dev(
             "note": (
                 "Development subset with gold support abstracts plus distractors. "
                 "Not comparable to official 16M-corpus PaperSearchQA numbers. "
-                "Test questions must not enter SFT, RL, or teacher generation."
+                "Test questions must not enter RL."
             ),
         },
+    )
+
+
+def prepare_papersearchqa_full(
+    output_dir: Path,
+    *,
+    raw_dir: Path | None = None,
+    with_pubmed_corpus: bool = False,
+    pubmed_jsonl: Path | None = None,
+    fetch_fn=None,
+) -> PreparedData:
+    from research_agent.data.pubmed import fetch_abstracts
+    from research_agent.data.sources.papersearchqa import (
+        CORPUS_JSONL,
+        HF_REVISION,
+        LICENSE,
+        SOURCE_URL,
+        attach_abstracts,
+        convert_papersearchqa_rows,
+        download_pubmed_jsonl,
+        load_split_rows,
+        stream_pubmed_corpus,
+    )
+
+    raw_dir = raw_dir or Path("data/raw/papersearchqa")
+    train_rows, train_meta = load_split_rows("train", None, raw_dir)
+    test_rows, test_meta = load_split_rows("test", None, raw_dir)
+    pmids = [
+        str(row.get("pmid") or "").strip()
+        for row in [*train_rows, *test_rows]
+        if str(row.get("pmid") or "").strip()
+    ]
+    abstracts = fetch_abstracts(pmids, getter=fetch_fn) if fetch_fn is not None else fetch_abstracts(pmids)
+    train_kept, train_excl = attach_abstracts(train_rows, abstracts)
+    test_kept, test_excl = attach_abstracts(test_rows, abstracts)
+    train_tasks, train_grading, train_docs = convert_papersearchqa_rows(train_kept, split="train")
+    test_tasks, test_grading, test_docs = convert_papersearchqa_rows(test_kept, split="test")
+    docs_by_id = {doc["doc_id"]: doc for doc in [*train_docs, *test_docs]}
+    gold_docs = list(docs_by_id.values())
+    extra = {
+        "source_url": SOURCE_URL,
+        "license": LICENSE,
+        "hf_revision": HF_REVISION,
+        "n_train": len(train_tasks),
+        "n_test": len(test_tasks),
+        "train_parquet": train_meta,
+        "test_parquet": test_meta,
+        "excluded": train_excl + test_excl,
+        "note": (
+            "Official PaperSearchQA splits. Test questions must not enter RL. "
+            "Without --with-pubmed-corpus the search collection is gold abstracts only, not the 16M dump."
+        ),
+    }
+    if not with_pubmed_corpus:
+        return _finalize(
+            "papersearchqa",
+            output_dir,
+            train_tasks + test_tasks,
+            train_grading + test_grading,
+            gold_docs,
+            extra_manifest=extra,
+        )
+
+    pubmed_path = pubmed_jsonl or Path("data/raw/pubmed_bioasq_2022") / Path(CORPUS_JSONL).name
+    if not pubmed_path.exists():
+        extra["pubmed_sha256"] = download_pubmed_jsonl(pubmed_path)
+    extra["pubmed_path"] = str(pubmed_path)
+    extra["pubmed_bytes"] = pubmed_path.stat().st_size
+    output_dir.mkdir(parents=True, exist_ok=True)
+    public_dir = output_dir / "public"
+    private_dir = output_dir / "private"
+    public_dir.mkdir(exist_ok=True)
+    private_dir.mkdir(exist_ok=True)
+    corpus_path = public_dir / "corpus.jsonl"
+    stream_report = stream_pubmed_corpus(pubmed_path, corpus_path, gold_documents=gold_docs)
+    extra["pubmed_corpus"] = stream_report
+    extra["note"] = (
+        "Official PaperSearchQA splits plus the 16M PubMed retrieval dump. "
+        "Test questions must not enter RL. "
+        "In-process BM25 needs enough RAM to index the dump at runtime."
+    )
+    task_hash = _write_jsonl(public_dir / "tasks.jsonl", train_tasks + test_tasks)
+    grade_hash = _write_jsonl(private_dir / "grading.jsonl", train_grading + test_grading)
+    corpus = CorpusSnapshot.from_records(gold_docs)
+    report = validate_prepared(train_tasks + test_tasks, train_grading + test_grading, corpus, retrieval_audit=False)
+    if stream_report["n_appended_gold"]:
+        report.warnings.append(f"appended {stream_report['n_appended_gold']} gold abstracts missing from the 16M dump")
+    manifest = {
+        "source": "papersearchqa",
+        "n_tasks": len(train_tasks) + len(test_tasks),
+        "n_documents": stream_report["n_documents"],
+        "corpus_version": sha256_text(str(stream_report["n_documents"]))[:16],
+        "hashes": {
+            "tasks.jsonl": task_hash,
+            "corpus.jsonl": "streamed-pubmed",
+            "grading.jsonl": grade_hash,
+        },
+        "validation": report.as_dict(),
+        **extra,
+    }
+    (output_dir / "manifest.json").write_text(canonical_json(manifest) + "\n", encoding="utf-8")
+    return PreparedData(
+        source="papersearchqa",
+        output_dir=output_dir,
+        n_tasks=len(train_tasks) + len(test_tasks),
+        n_documents=int(stream_report["n_documents"]),
+        corpus_version=str(manifest["corpus_version"]),
+        report=manifest,
     )
 
 
@@ -255,6 +365,7 @@ def prepare_source(
     n_test: int = 10,
     n_distractors: int = 40,
     seed: int = 20260919,
+    with_pubmed_corpus: bool = False,
 ) -> PreparedData:
     if source in {"synthetic-dev", "synthetic_dev"}:
         return prepare_synthetic_dev(output_dir)
@@ -266,10 +377,12 @@ def prepare_source(
             n_distractors=n_distractors,
             seed=seed,
         )
+    if source in {"papersearchqa", "psqa"}:
+        if input_path is not None:
+            return prepare_papersearchqa(input_path, output_dir, split=split)
+        return prepare_papersearchqa_full(output_dir, with_pubmed_corpus=with_pubmed_corpus)
     if input_path is None:
         raise ValueError(f"{source} requires --input")
-    if source in {"papersearchqa", "psqa"}:
-        return prepare_papersearchqa(input_path, output_dir, split=split)
     if source == "qasper":
         return prepare_qasper(input_path, output_dir, split=split)
     raise ValueError(f"unknown source {source}")

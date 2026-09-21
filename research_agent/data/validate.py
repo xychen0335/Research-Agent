@@ -43,12 +43,17 @@ class ValidationReport:
         }
 
 
+RETRIEVAL_AUDIT_MAX_TASKS = 200
+RETRIEVAL_AUDIT_MAX_DOCS = 2000
+
+
 def validate_prepared(
     tasks: list[dict[str, Any]],
     grading: list[dict[str, Any]],
     corpus: CorpusSnapshot,
     *,
     retrieve_k: int = 5,
+    retrieval_audit: bool | None = None,
 ) -> ValidationReport:
     report = ValidationReport(n_tasks=len(tasks), n_documents=len(corpus.documents))
     task_ids = [str(item.get("task_id")) for item in tasks]
@@ -58,6 +63,7 @@ def validate_prepared(
     if len(questions) != len(set(questions)):
         report.warnings.append("duplicate questions")
     grading_by_id = {str(item.get("task_id")): item for item in grading}
+    tasks_by_id = {str(item.get("task_id")): item for item in tasks}
     missing = [tid for tid in task_ids if tid not in grading_by_id]
     if missing:
         report.errors.append(f"grading missing for {missing[:8]}")
@@ -71,7 +77,12 @@ def validate_prepared(
         if leaked:
             report.errors.append(f"{task.get('task_id')} public record has {leaked}")
 
-    index = BM25Index(corpus)
+    if retrieval_audit is None:
+        retrieval_audit = len(tasks) <= RETRIEVAL_AUDIT_MAX_TASKS and len(corpus.documents) <= RETRIEVAL_AUDIT_MAX_DOCS
+    index = BM25Index(corpus) if retrieval_audit else None
+    if not retrieval_audit:
+        report.warnings.append("BM25 retrieval audit skipped for large corpus")
+
     for spec in grading:
         task_id = str(spec.get("task_id"))
         for doc_id in spec.get("support_doc_ids") or []:
@@ -88,11 +99,11 @@ def validate_prepared(
             blob = doc.search_text.lower()
             if "golden_answers" in blob or "gold_evidence" in blob:
                 report.leak_hits.append(f"{task_id} document {doc_id} contains label keys")
-        public = next((item for item in tasks if item.get("task_id") == task_id), {})
+        public = tasks_by_id.get(task_id, {})
         if answer and answer in normalize_answer(str(public.get("question") or "")) and spec.get("answerable", True):
             if len(answer.split()) <= 1 and answer not in {"unknown", "yes", "no"}:
                 report.warnings.append(f"{task_id} answer string appears in the question")
-        if spec.get("answerable", True) and spec.get("support_doc_ids"):
+        if retrieval_audit and spec.get("answerable", True) and spec.get("support_doc_ids"):
             query = str(public.get("question") or "")
             hits = {hit.doc_id for hit in index.search(query, topk=retrieve_k)}
             support = {str(doc_id) for doc_id in spec.get("support_doc_ids") or []}

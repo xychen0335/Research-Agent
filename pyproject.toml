@@ -19,6 +19,15 @@ dependencies = [
 [project.optional-dependencies]
 data = [
     "pyarrow>=17",
+    "huggingface-hub>=0.25",
+]
+train = [
+    "torch",
+    "peft>=0.12",
+    "accelerate>=0.34",
+    "transformers>=4.45",
+    "vllm",
+    "verl @ git+https://github.com/verl-project/verl.git",
 ]
 
 [project.scripts]

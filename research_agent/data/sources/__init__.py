@@ -1,4 +1,4 @@
-"""Dataset source adapters. Official dumps are converted; they are not downloaded here."""
+"""Dataset source adapters for PaperSearchQA and QASPER dumps."""
 
 from research_agent.data.sources.papersearchqa import convert_papersearchqa_rows
 from research_agent.data.sources.qasper import convert_qasper_rows

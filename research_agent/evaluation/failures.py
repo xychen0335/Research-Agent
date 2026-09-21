@@ -1,4 +1,4 @@
-"""Failure-mode counts for Base / SFT / GRPO eval runs."""
+"""Failure-mode counts for Base / GRPO eval runs."""
 
 from __future__ import annotations
 

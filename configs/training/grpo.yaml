@@ -6,11 +6,11 @@ clip: 0.2
 kl_coef: 0.02
 max_prompts: 4
 max_updates: 1
-data: data/processed/papersearchqa-dev
+data: data/processed/papersearchqa
 output_dir: outputs/grpo
 policy: huggingface
 model_name: Qwen/Qwen3.5-4B
-adapter: outputs/sft/adapter
+adapter: ""
 backend: auto
 status: not_run
 note: HuggingFace fallback for same-question groups. The verl GRPO trainer is configs/training/verl_grpo.yaml via scripts/train/verl_grpo.sh.

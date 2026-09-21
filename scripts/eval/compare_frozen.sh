@@ -4,6 +4,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 python -m research_agent.cli compare \
-  --runs "${RUNS:-outputs/psqa-qwen35-4b-base,outputs/psqa-no-retrieval,outputs/sft,outputs/grpo}" \
+  --runs "${RUNS:-outputs/psqa-qwen35-4b-base,outputs/psqa-no-retrieval,outputs/grpo}" \
   --output "${OUTPUT:-outputs/compare-frozen.json}" \
   "$@"

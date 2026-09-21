@@ -35,7 +35,7 @@ CS005_MARKERS = ("extramix", "boostsplit", "fullbench")
 DEFAULT_CONDITIONS = (
     ("no_retrieval", "synth-no-retrieval", "无检索 Base"),
     ("fixed_rag", "synth-fixed-rag", "固定检索 RAG"),
-    ("trained_agent", "sft-qwen35-4b", "训练后 Research Agent"),
+    ("trained_agent", "grpo-qwen35-4b", "训练后 Research Agent"),
     ("scripted_oracle", "cpu-oracle", "脚本 oracle，不是训练后的 Qwen3.5-4B"),
 )
 
