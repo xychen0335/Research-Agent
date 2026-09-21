@@ -1,6 +1,6 @@
 # 科研检索 Agentic RL 方案
 
-更新日期：2026-09-18。状态：方案已确定方向，数据下载、科研检索环境和 GPU 训练尚未完成。
+状态：CPU harness、32 题合成开发集、PaperSearchQA 50 题开发子集、轨迹看板、冻结 8 题评测入口和 GPU mini-run 脚本已在仓库内实现。本机 Ollama `qwen3.5:4b` 在 8 道 train 题上测过 Base（EM 0.5，不是 HF/A100/16M）。官方 16M PubMed 下载和 Qwen3.5-4B GPU 训练尚未运行。训练目标与验收标准以下文为准。
 
 ## 研究问题
 
@@ -44,19 +44,19 @@ flowchart TD
     R --> P
 ```
 
-拟用 verl Agent Loop adapter 连接 harness 与采样端，参考 [Agent Loop 文档](https://verl.readthedocs.io/en/latest/advance/agent_loop.html)。具体接口以选定版本为准。模型调用通过可替换后端完成，训练端使用 rollout 引擎，部署端使用模型服务；两端共用工具 schema、提示词、上下文规则、预算和终止语义。
+拟用 verl 作为训练框架：PPOTrainer 负责采样、更新和权重同步。本仓库只实现 Agent Loop 与 reward 插件（`research_agent/training/verl/`），由 `scripts/train/verl_grpo.sh` 启动 `python -m verl.trainer.main_ppo`。接口参考 [Agent Loop 文档](https://verl.readthedocs.io/en/latest/advance/agent_loop.html)。具体接口以选定版本为准。模型调用通过可替换后端完成，训练端使用 rollout 引擎，部署端使用模型服务；两端共用工具 schema、提示词、上下文规则、预算和终止语义。
 
 Harness 不预写搜索路径，不自动替模型改写失败查询。参数校验、超时和调用预算由代码执行。首版不用额外强模型总结观测，避免混入未计量的模型能力；后续若增加摘要或记忆模块，记录其模型、成本和版本并单独消融。
 
 每次 episode 独立保存已读段落、剩余预算、工具结果与终止原因。上下文截断必须显式记录；提交后不得继续执行工具。并发任务隔离状态，工具重试采用有界规则并记录每次尝试。基础设施故障与策略无效动作分别标记，不把服务宕机统一解释为模型能力失败。
 
-代码目录以 [代码目录与依赖规划](CODE_STRUCTURE.md) 为准：`research_agent/harness/` 负责循环，`environment/` 负责工具，`grading/` 负责评分，`models/` 接模型服务，`training/verl/` 接训练后端，`integrations/` 接 AutoTraining。模块均待实现，评分标签不进入策略输入。
+代码目录以 [代码目录与依赖规划](CODE_STRUCTURE.md) 为准：`research_agent/harness/` 负责循环，`environment/` 负责工具，`grading/` 负责评分，`models/` 接模型服务，`training/verl/` 接 verl 的 Agent Loop / reward 插件，`integrations/` 接 AutoTraining。评分标签不进入策略输入。
 
 ## 上游复用边界
 
 - [Tongyi DeepResearch](https://github.com/Alibaba-NLP/DeepResearch)：参考 ReAct、工具交互和评测入口，作为教师模型候选。不能将推理 quick start 视为完整训练配方，也不宣称完整复现其方法。
 - [Search-R1](https://github.com/PeterGriffinJin/Search-R1)：参考搜索与生成交错的 rollout、观测 token 的 loss mask、检索服务和结果奖励。其原有模型与框架组合不证明 Qwen3.5-4B 可直接兼容。
-- verl：拟作为训练后端。科研工具、数据和奖励需要独立实现。通过最小 GPU 更新后再锁定版本。
+- verl：训练框架。科研工具、数据和奖励在本仓库实现为 Agent Loop / `compute_score` 插件。通过最小 GPU 更新后再锁定版本。`research_agent/training/grpo.py` 只是无 verl 时的 HuggingFace 回退，不是 verl 实现。
 
 项目代码集中在 `research_agent/`，配置按数据、harness、模型、训练、评测和实验分组；脚本按 setup、data、train、eval 分组。详见代码目录规划，目录按功能逐步创建。旧 SQL Agent 代码、配置、脚本、测试、演示界面和本地 BIRD 数据已删除。第三方依赖后续按固定版本检出至 `upstream/`，当前目录尚未建立，版本仍待新任务验证。
 
@@ -171,4 +171,4 @@ RL 保留成功与失败轨迹，按同题采样组计算优势。监控全失�
 5. 冻结评测与对比看板：固定 harness 比较模型，展示计算机科研案例和下游规划盲评，包含负结果。
 6. 依据性能剖析决定是否实施完整异步 RL，提交吞吐、策略滞后与质量对照。
 
-当前完成项为方向确认、公开来源初查和方案文档。以上数据、工具、训练和展示均未宣称已经实现。
+当前完成项：方向确认、公开来源初查、方案文档、CPU harness、32 题合成开发集、PaperSearchQA 50 题开发子集、脚本基线、Ollama 4B Base 小验证集与看板对照、cs-005 固定规划器三路对照（训练后 checkpoint 保持未运行）、verl Agent Loop / reward 插件与异步 RL 门控。官方全量数据、Qwen3.5-4B 训练和 GPU 指标未宣称已经实现。

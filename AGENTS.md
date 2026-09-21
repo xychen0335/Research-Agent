@@ -18,7 +18,8 @@
 
 - miniconda 管理环境，输出 requirements.txt。（仅在无 conda 时，降级为 uv）
 - 使用 git 维护。
-- commit 采用：feat / fix / chore / docs / refactor + 中文说明
+- commit 采用：feat / fix / chore / docs / refactor + 中文说明。
+- 使用 python 原生单测完成单元测试，不使用 pytest。
 
 ## 当前方向（2026-09-18）
 
@@ -31,4 +32,4 @@
 - 优先并发工具交互与同步更新；完整异步 RL 由性能剖析决定，并验证策略版本与数据滞后。
 
 - 代码目录遵循 `docs/research/CODE_STRUCTURE.md`；业务逻辑集中在 `research_agent/`，脚本仅负责启动。
-- 训练、评测和教师采样复用同一 harness；verl 适配集中在 `research_agent/training/verl/`。
+- 训练、评测和教师采样复用同一 harness；verl 是训练框架，本仓库只在 `research_agent/training/verl/` 放 Agent Loop 与 reward 插件。

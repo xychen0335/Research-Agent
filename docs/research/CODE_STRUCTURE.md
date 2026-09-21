@@ -1,6 +1,6 @@
 # 代码目录与依赖规划
 
-状态：目标结构，尚未实现。现有仓库只有设计文档；下列文件随对应功能实现时创建，不批量生成空类或空目录。业务设计见 [训练方案](PLAN.md)。
+状态：目标结构。CPU 包路径已按此树落地。GPU 训练目录有 adapter，没有测过的 checkpoint。
 
 ## 上游参考
 
@@ -21,7 +21,7 @@ Search-R1 更适合参考搜索训练链路，Tongyi 更适合参考工具 Agent
 Research-Agent/
 ├── README.md                         # 项目入口、真实状态、最小运行步骤
 ├── AGENTS.md                         # 开发约定
-├── pyproject.toml                    # 本地包元数据、CLI 入口、测试配置
+├── pyproject.toml                    # 本地包元数据、CLI 入口
 ├── environment.yml                   # Miniconda 环境与 Python 版本
 ├── requirements.txt                  # 经验证的运行依赖
 ├── requirements-train.txt            # GPU 训练额外依赖
@@ -36,7 +36,9 @@ Research-Agent/
 │   │   └── trajectory.py             # 事件与轨迹序列化
 │   ├── models/
 │   │   ├── base.py                   # 生成接口及 token/logprob 返回契约
-│   │   └── openai_compatible.py      # 教师与部署服务调用
+│   │   ├── openai_compatible.py      # 教师、Ollama 与部署服务调用
+│   │   ├── huggingface.py            # 本地 HF 生成，返回 token id 与 logprob
+│   │   └── factory.py                # 按名称装配策略，harness 不依赖后端
 │   ├── environment/
 │   │   ├── tools.py                  # search/open/submit schema 与执行分发
 │   │   ├── corpus.py                 # 文档、段落 ID 与快照读取
@@ -55,14 +57,19 @@ Research-Agent/
 │   │   └── reward.py                 # RL 奖励组合，复用上述评分函数
 │   ├── training/
 │   │   ├── export.py                 # 标准任务/轨迹转换为后端数据格式
+│   │   ├── sft.py                    # assistant-only LoRA SFT
+│   │   ├── grpo.py                   # 同题组采集与 clipped surrogate
+│   │   ├── compat.py                 # GPU / verl / vLLM 探测
 │   │   └── verl/
-│   │       ├── agent_loop.py         # 调用 harness，返回 verl 所需 rollout
-│   │       ├── model_backend.py      # verl 生成端与模型接口的适配
-│   │       └── reward_adapter.py     # verl reward 输入输出适配
+│   │       ├── agent_loop.py         # 注册 AgentLoopBase 子类并调用 harness；不是 trainer
+│   │       ├── model_backend.py      # LLMServerClient.generate ↔ PolicyModel
+│   │       ├── reward_adapter.py     # custom_reward_function.compute_score → grading/
+│   │       └── launch.py             # 组装 Hydra 覆盖项并 exec verl.trainer.main_ppo
 │   ├── evaluation/
 │   │   ├── runner.py                 # 固定任务集运行、评分、checkpoint 对比
 │   │   ├── baselines.py              # 无检索与固定检索基线
 │   │   ├── metrics.py                # 汇总、成本曲线、配对置信区间
+│   │   ├── failures.py               # 工具失败、无解析、错答分布
 │   │   └── planning.py               # 固定规划模型的下游盲评数据导出
 │   └── integrations/
 │       └── autotraining.py           # 公开请求/响应协议适配，不依赖腾讯 SDK
@@ -84,11 +91,12 @@ Research-Agent/
 │   ├── train/                        # SFT、GRPO、checkpoint 导出入口
 │   └── eval/                         # 批量评测启动入口
 ├── apps/
-│   └── dashboard/                    # 真实轨迹与评测展示，技术栈待实现时选择
+│   └── dashboard/                    # FastAPI 轨迹看板，读 outputs/ 事件
 ├── tests/
+│   ├── support.py                    # unittest 共用夹具，不引入 pytest
 │   ├── unit/                         # 预算、终止、格式、评分等纯逻辑
 │   ├── integration/                  # harness/工具/后端接口及标签隔离
-│   ├── gpu/                          # 单步更新、权重同步、导出重载
+│   ├── gpu/                          # 单步更新、权重同步、导出重载；无 CUDA 时 skip
 │   └── fixtures/                     # 小型合成文档与轨迹，不代表性能基准
 ├── docs/research/
 │   ├── PLAN.md
@@ -107,7 +115,7 @@ Research-Agent/
 - `harness/` 依赖公共契约和模型/工具接口。具体后端由 CLI 或训练入口注入；harness 不导入 `training/`、`grading/`、`evaluation/` 或应用。
 - `environment/` 读取公开语料与索引，不读取答案、评分依据和训练奖励。工具返回不携带 gold 标记。
 - `grading/` 读取私有评分依据与完成轨迹，不向运行中的策略传回参考答案。目录隔离之外，输入装配也必须显式移除标签。
-- `training/verl/` 是 verl API 的唯一项目适配入口。训练依赖延迟导入，CPU 数据处理与普通推理无需加载 CUDA、Ray 或 verl。
+- `training/verl/` 是 verl 的项目插件（Agent Loop + reward），不是第二个训练框架。调度、GRPO 更新和权重同步由 `verl.trainer.main_ppo` 执行；CPU 数据处理与普通推理无需加载 CUDA、Ray 或 verl。
 - `evaluation/runner.py` 和 `data/teacher.py` 调用同一个 `harness/loop.py`，再交给评分器；不各自实现搜索循环。
 - `integrations/` 和 `apps/` 消费公开结果与事件。AutoTraining 接入不直接操作梯度、奖励或私有标签。
 - `scripts/` 只处理启动、参数转发与进程环境；划分、奖励、工具执行逻辑必须在 Python 包内。
@@ -118,9 +126,10 @@ Research-Agent/
 | --- | --- |
 | 准备训练任务 | `data/sources → prepare → validate → data/` |
 | 合成新任务 | `corpus → synthesize → validate → 私有评分依据与公共任务分开存储` |
-| 教师 SFT | `data/teacher → harness → model + environment → grading → training/export` |
-| GRPO rollout | `verl 调度 → training/verl/agent_loop → harness → model_backend + environment` |
-| RL 评分更新 | `完成轨迹 → reward_adapter → grading/reward → verl trainer` |
+| 教师 SFT | `data/teacher → harness → model + environment → grading → training/sft` |
+| GRPO 组采集（HF 回退） | `training/grpo.collect_group → harness → grading → export_grpo_group` |
+| GRPO 训练 | `verl.trainer.main_ppo → VerlResearchAgentLoop.run → harness → model_backend + environment` |
+| RL 评分更新 | `完成轨迹 → reward_adapter.compute_score → grading/reward → verl trainer` |
 | 在线推理 | `cli 或 integrations → harness → openai_compatible + environment → Result` |
 | 批量评测 | `evaluation/runner → harness → grading → metrics → outputs/` |
 
@@ -146,4 +155,4 @@ Research-Agent/
 4. 建批量评测、科研案例、下游规划评测与看板。
 5. 测量性能后扩展并发与异步训练。
 
-面试源码阅读顺序是 `harness/loop.py → environment/tools.py → grading/reward.py → training/verl/agent_loop.py → evaluation/planning.py`，分别对应交互、环境、学习信号、训练接入和业务价值。上述路径目前是规划，不表示已有实现。
+面试源码阅读顺序是 `harness/loop.py → environment/tools.py → grading/reward.py → training/verl/agent_loop.py → evaluation/planning.py`，分别对应交互、环境、学习信号、训练接入和业务价值。GPU 训练结果仍以实测为准。
