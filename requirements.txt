@@ -1,0 +1,7 @@
+# CPU runtime. Versions are lower bounds, not a verified lockfile.
+# Qwen3.5-4B + verl + vLLM compatibility has not been measured.
+fastapi>=0.115
+httpx>=0.27
+pydantic>=2.7
+pyyaml>=6.0
+uvicorn>=0.32

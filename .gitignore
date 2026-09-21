@@ -2,6 +2,11 @@
 .venv-ui/
 __pycache__/
 *.pyc
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
 .env
 outputs/
 data/generated/
@@ -11,5 +16,6 @@ data/splits/
 data/databases/
 checkpoints/
 exports/
-models/
+/models/
+*.gguf
 upstream/

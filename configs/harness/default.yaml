@@ -1,0 +1,8 @@
+max_explore_calls: 6
+max_submit_calls: 1
+max_observation_chars: 4000
+max_context_tokens: 8192
+max_generation_tokens: 1024
+search_topk: 3
+max_open_paragraphs: 4
+max_invalid_actions: 4

@@ -1,0 +1,9 @@
+# GPU extras. Do not treat these unpinned names as a measured Qwen3.5 stack.
+# Install on the training node, then record exact versions in outputs/gpu-mini/gpu_compat.json.
+# verl and vLLM are the training/rollout framework; they are not reimplemented in this repo.
+torch
+peft
+accelerate
+transformers
+# verl
+# vllm
