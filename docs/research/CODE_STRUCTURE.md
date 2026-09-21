@@ -64,14 +64,12 @@ Research-Agent/
 │   │       ├── model_backend.py      # LLMServerClient.generate ↔ PolicyModel
 │   │       ├── reward_adapter.py     # custom_reward_function.compute_score → grading/
 │   │       └── launch.py             # 组装 Hydra 覆盖项并 exec verl.trainer.main_ppo
-│   ├── evaluation/
-│   │   ├── runner.py                 # 固定任务集运行、评分、checkpoint 对比
-│   │   ├── baselines.py              # 无检索与固定检索基线
-│   │   ├── metrics.py                # 汇总、成本曲线、配对置信区间
-│   │   ├── failures.py               # 工具失败、无解析、错答分布
-│   │   └── planning.py               # 固定规划模型的下游盲评数据导出
-│   └── integrations/
-│       └── autotraining.py           # 公开请求/响应协议适配，不依赖腾讯 SDK
+│   └── evaluation/
+│       ├── runner.py                 # 固定任务集运行、评分、checkpoint 对比
+│       ├── baselines.py              # 无检索与固定检索基线
+│       ├── metrics.py                # 汇总、成本曲线、配对置信区间
+│       ├── failures.py               # 工具失败、无解析、错答分布
+│       └── planning.py               # 固定规划模型的下游盲评数据导出
 ├── prompts/
 │   ├── agent.md                      # 训练与部署共用的系统提示词
 │   ├── synthesize.md                 # 任务生成提示词
@@ -116,7 +114,7 @@ Research-Agent/
 - `grading/` 读取私有评分依据与完成轨迹，不向运行中的策略传回参考答案。目录隔离之外，输入装配也必须显式移除标签。
 - `training/verl/` 是 verl 的项目插件（Agent Loop + reward），不是第二个训练框架。调度、GRPO 更新和权重同步由 `verl.trainer.main_ppo` 执行；CPU 数据处理与普通推理无需加载 CUDA、Ray 或 verl。
 - `evaluation/runner.py` 调用 `harness/loop.py`，再交给评分器；不另写搜索循环。
-- `integrations/` 和 `apps/` 消费公开结果与事件。AutoTraining 接入不直接操作梯度、奖励或私有标签。
+- `apps/` 消费公开结果与事件，不读取私有标签、梯度或奖励。
 - `scripts/` 只处理启动、参数转发与进程环境；划分、奖励、工具执行逻辑必须在 Python 包内。
 
 ## 关键调用链
@@ -128,12 +126,12 @@ Research-Agent/
 | GRPO 组采集（HF 回退） | `training/grpo.collect_group → harness → grading → export_grpo_group` |
 | GRPO 训练 | `verl.trainer.main_ppo → VerlResearchAgentLoop.run → harness → model_backend + environment` |
 | RL 评分更新 | `完成轨迹 → reward_adapter.compute_score → grading/reward → verl trainer` |
-| 在线推理 | `cli 或 integrations → harness → openai_compatible + environment → Result` |
+| 在线推理 | `cli → harness → openai_compatible + environment → Result` |
 | 批量评测 | `evaluation/runner → harness → grading → metrics → outputs/` |
 
 训练时使用后端返回的真实 token ID、log probability 和生成 mask，普通 API 推理缺少这些字段时明确记为不可用于 RL 更新，不做估算填充。
 
-异步工具执行放在 `harness/loop.py` 和工具实现中，跨 episode 的调度尽量复用 verl。完整异步采样/训练队列仅在完成性能剖析后扩展 `training/`；业务工具与 AutoTraining 接口不承担策略版本调度。
+异步工具执行放在 `harness/loop.py` 和工具实现中，跨 episode 的调度尽量复用 verl。完整异步采样/训练队列仅在完成性能剖析后扩展 `training/`。
 
 ## 配置、依赖与产物约定
 

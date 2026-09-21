@@ -2,7 +2,7 @@
 
 This is not PaperSearchQA and not a general benchmark. Biomedical items are
 original short abstracts that state textbook facts. Computer-science items are
-fictional papers for AutoTraining-style condition checks.
+fictional papers for condition-check questions.
 """
 
 from __future__ import annotations
@@ -511,7 +511,7 @@ TASKS: list[DevTask] = [
         ["cs:boostnet:1", "cs:boostnet:2", "cs:syncret-baseline:1", "cs:syncret-baseline:2"],
         ["cs:boostnet", "cs:syncret-baseline"],
         "BoostNet extra data BoostSplit versus SyncRet FullBench",
-        "autotraining-demo",
+        "cs-demo",
     ),
     _cs(
         "cs-006",
