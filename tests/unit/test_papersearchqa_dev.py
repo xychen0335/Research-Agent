@@ -2,7 +2,7 @@ import json
 from unittest.mock import patch
 
 from research_agent.data.prepare import prepare_papersearchqa_dev
-from research_agent.data.sources.papersearchqa import attach_abstracts, sample_indices
+from research_agent.data.papersearchqa import attach_abstracts, sample_indices
 from research_agent.training.grpo import GRPOConfig, _collect_groups
 from research_agent.models.scripted import ScriptedPolicy, tool_call
 
@@ -11,9 +11,9 @@ from tests.support import HarnessAsyncTestCase
 
 class TestPapersearchqaDev(HarnessAsyncTestCase):
     def test_sample_indices_are_deterministic(self):
-        a = sample_indices("train", 5, seed=20260919)
-        b = sample_indices("train", 5, seed=20260919)
-        c = sample_indices("train", 5, seed=1)
+        a = sample_indices(5, seed=20260919, size=100)
+        b = sample_indices(5, seed=20260919, size=100)
+        c = sample_indices(5, seed=1, size=100)
         assert a == b
         assert a != c
         assert len(set(a)) == 5
@@ -28,7 +28,7 @@ class TestPapersearchqaDev(HarnessAsyncTestCase):
         assert excluded[0]["pmid"] == "2"
 
     def test_prepare_dev_subset_separates_test(self):
-        def fake_sample(split, n, *, seed, exclude=None):
+        def fake_sample(n, *, seed, size, exclude=None):
             return list(range(n))
 
         def fake_load(split, indices, raw_dir):
@@ -54,8 +54,13 @@ class TestPapersearchqaDev(HarnessAsyncTestCase):
             }
 
         with (
-            patch("research_agent.data.sources.papersearchqa.sample_indices", fake_sample),
-            patch("research_agent.data.sources.papersearchqa.load_split_rows", fake_load),
+            patch(
+                "research_agent.data.papersearchqa.resolve_parquet",
+                lambda split, raw_dir: raw_dir / f"{split}.parquet",
+            ),
+            patch("research_agent.data.papersearchqa.parquet_row_count", lambda path: 100),
+            patch("research_agent.data.papersearchqa.sample_indices", fake_sample),
+            patch("research_agent.data.papersearchqa.load_split_rows", fake_load),
             patch("research_agent.data.pubmed.fetch_abstracts", fake_fetch),
         ):
             prepared = prepare_papersearchqa_dev(

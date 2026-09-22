@@ -8,7 +8,7 @@ from tests.support import HarnessAsyncTestCase
 class TestTools(HarnessAsyncTestCase):
     async def test_search_returns_doc_ids(self):
         state = EpisodeState(
-            task=TaskInput(request_id="t", question="q", environment_id="synthetic-dev"),
+            task=TaskInput(request_id="t", question="q", environment_id="test"),
             episode_id="e",
             policy_version="p",
             harness_version="h",
@@ -23,7 +23,7 @@ class TestTools(HarnessAsyncTestCase):
 
     async def test_open_returns_stable_paragraph_ids(self):
         state = EpisodeState(
-            task=TaskInput(request_id="t", question="q", environment_id="synthetic-dev"),
+            task=TaskInput(request_id="t", question="q", environment_id="test"),
             episode_id="e",
             policy_version="p",
             harness_version="h",
@@ -35,7 +35,7 @@ class TestTools(HarnessAsyncTestCase):
 
     async def test_submit_rejects_unknown_paragraph(self):
         state = EpisodeState(
-            task=TaskInput(request_id="t", question="q", environment_id="synthetic-dev"),
+            task=TaskInput(request_id="t", question="q", environment_id="test"),
             episode_id="e",
             policy_version="p",
             harness_version="h",
@@ -49,7 +49,7 @@ class TestTools(HarnessAsyncTestCase):
 
     async def test_empty_query_recorded(self):
         state = EpisodeState(
-            task=TaskInput(request_id="t", question="q", environment_id="synthetic-dev"),
+            task=TaskInput(request_id="t", question="q", environment_id="test"),
             episode_id="e",
             policy_version="p",
             harness_version="h",

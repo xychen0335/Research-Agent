@@ -17,7 +17,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
             request_id="bio-001",
             task_id="bio-001",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             budget=Budget(),
         )
         model = ScriptedPolicy(
@@ -47,7 +47,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
             request_id="bio-001",
             task_id="bio-001",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             budget=Budget(),
         )
         model = ScriptedPolicy(
@@ -112,7 +112,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
             request_id="bio-001",
             task_id="bio-001",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             split="train",
         )
         spec = GradingSpec(task_id="bio-001", answer="RB1", aliases=("Rb1",))
@@ -168,7 +168,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
             kwargs={
                 "task_id": "bio-001",
                 "question": "Which gene is mutated in childhood retinoblastoma?",
-                "environment_id": "synthetic-dev",
+                "environment_id": "test",
                 "reward_model": {"ground_truth": "RB1"},
                 "extra_info": {"scoring": "exact_match"},
             },
@@ -197,7 +197,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
         output = await loop.run(
             {"temperature": 0.0},
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             extra_info={"task_id": "bio-001"},
             reward_model={"ground_truth": "RB1"},
         )
@@ -235,12 +235,12 @@ class TestVerlAdapter(HarnessAsyncTestCase):
         assert "actor_rollout_ref.rollout.n=4" in argv
         assert "reward.custom_reward_function.name=compute_score" in argv
         assert "research_agent.training.grpo" not in joined
-        assert "Qwen/Qwen3.5-4B" in joined
+        assert "models/Qwen3.5-4B" in joined
         adapter_argv = verl_main_ppo_argv(root=Path.cwd(), adapter="/tmp/lora-adapter")
         assert any(item.startswith("+actor_rollout_ref.model.lora_adapter_path=") for item in adapter_argv)
         overrides = hydra_overrides(raw, root=Path.cwd())
         model_path = next(item for item in overrides if item.startswith("actor_rollout_ref.model.path="))
-        assert model_path.endswith("Qwen/Qwen3.5-4B")
+        assert model_path.endswith("models/Qwen3.5-4B")
 
     def test_run_grpo_does_not_pretend_to_be_verl(self):
         from research_agent.training.grpo import GRPOConfig, run_grpo
@@ -270,7 +270,7 @@ class TestVerlAdapter(HarnessAsyncTestCase):
         with patch.dict(sys.modules, {"pyarrow": None, "pyarrow.parquet": None}):
             report = write_verl_files(self.prepared.output_dir)
         assert report["status"] == "wrote"
-        assert report["n_train"] + report["n_test"] == 32
+        assert report["n_train"] + report["n_test"] == 2
         train_path = self.prepared.output_dir / "public" / "verl_train.jsonl"
         assert train_path.exists()
         first = train_path.read_text(encoding="utf-8").splitlines()[0]

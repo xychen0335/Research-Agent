@@ -24,7 +24,7 @@ class TestBudget(HarnessAsyncTestCase):
             request_id="budget",
             task_id="budget",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             budget=budget,
         )
         model = ScriptedPolicy(
@@ -47,7 +47,7 @@ class TestBudget(HarnessAsyncTestCase):
         task = TaskInput(
             request_id="bad",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             budget=Budget(max_invalid_actions=2, max_explore_calls=6),
         )
         model = ScriptedPolicy({task.question: ["not a tool call", "still not", "nope"]}, policy_version="bad")

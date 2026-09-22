@@ -1,9 +1,7 @@
 from pathlib import Path
 
-from research_agent.data.sources.papersearchqa import convert_papersearchqa_rows
-from research_agent.data.sources.qasper import convert_qasper_rows
-from research_agent.data.synthesize import tasks_from_facts
-from research_agent.environment.corpus import CorpusSnapshot
+from research_agent.data.papersearchqa import convert_papersearchqa_rows
+from research_agent.data.qasper import convert_qasper_rows
 
 from tests.support import TempDirTestCase
 
@@ -56,20 +54,3 @@ class TestAdapters(TempDirTestCase):
         assert prepared.n_tasks == 1
         assert prepared.report["validation"]["ok"] is True
         assert prepared.report["note"].startswith("Single-paper")
-
-    def test_synthesize_requires_existing_paragraphs(self):
-        corpus = CorpusSnapshot.from_records(
-            [{"doc_id": "d", "title": "t", "paragraphs": ["fact lives here"]}]
-        )
-        tasks, grading = tasks_from_facts(
-            [
-                {
-                    "question": "Where is the fact?",
-                    "answer": "here",
-                    "evidence_paragraph_ids": ["d:0"],
-                }
-            ],
-            corpus,
-        )
-        assert tasks[0]["task_id"]
-        assert grading[0]["gold_evidence_ids"] == ["d:0"]

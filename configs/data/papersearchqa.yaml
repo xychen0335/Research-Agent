@@ -1,7 +1,2 @@
 source: papersearchqa
-hf_revision: 563d32ebcf5a8081ed67abe4f7afe0ae614be1e1
-n_train: 54907
-n_test: 5000
-corpus: jmhb/pubmed_bioasq_2022
-corpus_file: data/corpus/pubmed.jsonl
-note: Official PaperSearchQA splits. Use --with-pubmed-corpus for the 16M PubMed dump. Test split stays out of RL.
+note: Place parquet under data/raw/papersearchqa and pubmed.jsonl under data/raw/pubmed_bioasq_2022, then prepare. Test split stays out of RL.

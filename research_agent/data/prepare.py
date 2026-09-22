@@ -7,14 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from research_agent.data.sources.papersearchqa import LICENSE as PSQA_LICENSE
-from research_agent.data.sources.papersearchqa import SOURCE_URL as PSQA_URL
-from research_agent.data.sources.papersearchqa import convert_papersearchqa_rows
-from research_agent.data.sources.qasper import SOURCE_URL as QASPER_URL
-from research_agent.data.sources.qasper import convert_qasper_rows
-from research_agent.data.sources.synthetic_dev import DOCUMENTS, iter_grading, iter_public_tasks
+from research_agent.data.papersearchqa import convert_papersearchqa_rows
+from research_agent.data.qasper import convert_qasper_rows
 from research_agent.data.validate import validate_prepared
 from research_agent.environment.corpus import CorpusSnapshot, canonical_json, sha256_text
+from research_agent.paths import PAPERSEARCHQA_RAW, PUBMED_RAW
 
 
 @dataclass
@@ -55,16 +52,6 @@ def _load_json_or_jsonl(path: Path) -> list[dict[str, Any]]:
     return [payload]
 
 
-def prepare_synthetic_dev(output_dir: Path) -> PreparedData:
-    tasks = iter_public_tasks()
-    grading = iter_grading()
-    documents = list(DOCUMENTS)
-    return _finalize("synthetic-dev", output_dir, tasks, grading, documents, extra_manifest={
-        "license": "original synthetic text in this repository",
-        "note": "32-task development set. Not PaperSearchQA. Not a general CS benchmark.",
-    })
-
-
 def prepare_papersearchqa(input_path: Path, output_dir: Path, *, split: str) -> PreparedData:
     rows = _load_json_or_jsonl(input_path)
     tasks, grading, documents = convert_papersearchqa_rows(rows, split=split)
@@ -75,8 +62,6 @@ def prepare_papersearchqa(input_path: Path, output_dir: Path, *, split: str) -> 
         grading,
         documents,
         extra_manifest={
-            "source_url": PSQA_URL,
-            "license": PSQA_LICENSE,
             "split": split,
             "input": str(input_path),
             "input_sha256": sha256_text(input_path.read_text(encoding="utf-8")),
@@ -94,7 +79,6 @@ def prepare_qasper(input_path: Path, output_dir: Path, *, split: str) -> Prepare
         grading,
         documents,
         extra_manifest={
-            "source_url": QASPER_URL,
             "split": split,
             "input": str(input_path),
             "input_sha256": sha256_text(input_path.read_text(encoding="utf-8")),
@@ -148,8 +132,6 @@ def _finalize(
 
 
 def _documents_from_abstracts(abstracts: dict[str, dict], *, split: str) -> list[dict[str, Any]]:
-    from research_agent.data.sources.papersearchqa import HF_REVISION
-
     docs = []
     for pmid, item in abstracts.items():
         doc_id = f"pmid:{pmid}"
@@ -159,8 +141,8 @@ def _documents_from_abstracts(abstracts: dict[str, dict], *, split: str) -> list
                 "title": item.get("title") or "",
                 "paragraphs": [item["abstract"]],
                 "source": f"pmid:{pmid}",
-                "version": f"papersearchqa-{HF_REVISION[:8]}",
-                "metadata": {"pmid": pmid, "split": split, "hf_revision": HF_REVISION, "abstract_source": item.get("source")},
+                "version": "v1",
+                "metadata": {"pmid": pmid, "split": split},
             }
         )
     return docs
@@ -177,20 +159,23 @@ def prepare_papersearchqa_dev(
     fetch_fn=None,
 ) -> PreparedData:
     from research_agent.data.pubmed import fetch_abstracts
-    from research_agent.data.sources.papersearchqa import (
-        HF_REVISION,
-        LICENSE,
-        SOURCE_URL,
+    from research_agent.data.papersearchqa import (
         attach_abstracts,
         convert_papersearchqa_rows,
         load_split_rows,
+        parquet_row_count,
+        resolve_parquet,
         sample_indices,
     )
 
-    raw_dir = raw_dir or Path("data/raw/papersearchqa")
-    train_idx = sample_indices("train", n_train, seed=seed)
-    test_idx = sample_indices("test", n_test, seed=seed + 1)
-    distractor_idx = sample_indices("train", n_distractors, seed=seed + 2, exclude=set(train_idx))
+    raw_dir = raw_dir or PAPERSEARCHQA_RAW
+    train_path = resolve_parquet("train", raw_dir)
+    test_path = resolve_parquet("test", raw_dir)
+    train_idx = sample_indices(n_train, seed=seed, size=parquet_row_count(train_path))
+    test_idx = sample_indices(n_test, seed=seed + 1, size=parquet_row_count(test_path))
+    distractor_idx = sample_indices(
+        n_distractors, seed=seed + 2, size=parquet_row_count(train_path), exclude=set(train_idx)
+    )
     train_rows, train_meta = load_split_rows("train", train_idx, raw_dir)
     test_rows, test_meta = load_split_rows("test", test_idx, raw_dir)
     distractor_rows, _ = load_split_rows("train", distractor_idx, raw_dir)
@@ -228,9 +213,6 @@ def prepare_papersearchqa_dev(
         train_grading + test_grading,
         list(docs_by_id.values()),
         extra_manifest={
-            "source_url": SOURCE_URL,
-            "license": LICENSE,
-            "hf_revision": HF_REVISION,
             "seed": seed,
             "n_train": len(train_tasks),
             "n_test": len(test_tasks),
@@ -256,19 +238,15 @@ def prepare_papersearchqa_full(
     fetch_fn=None,
 ) -> PreparedData:
     from research_agent.data.pubmed import fetch_abstracts
-    from research_agent.data.sources.papersearchqa import (
-        CORPUS_JSONL,
-        HF_REVISION,
-        LICENSE,
-        SOURCE_URL,
+    from research_agent.data.papersearchqa import (
         attach_abstracts,
         convert_papersearchqa_rows,
-        download_pubmed_jsonl,
         load_split_rows,
+        resolve_pubmed_jsonl,
         stream_pubmed_corpus,
     )
 
-    raw_dir = raw_dir or Path("data/raw/papersearchqa")
+    raw_dir = raw_dir or PAPERSEARCHQA_RAW
     train_rows, train_meta = load_split_rows("train", None, raw_dir)
     test_rows, test_meta = load_split_rows("test", None, raw_dir)
     pmids = [
@@ -284,9 +262,6 @@ def prepare_papersearchqa_full(
     docs_by_id = {doc["doc_id"]: doc for doc in [*train_docs, *test_docs]}
     gold_docs = list(docs_by_id.values())
     extra = {
-        "source_url": SOURCE_URL,
-        "license": LICENSE,
-        "hf_revision": HF_REVISION,
         "n_train": len(train_tasks),
         "n_test": len(test_tasks),
         "train_parquet": train_meta,
@@ -307,9 +282,7 @@ def prepare_papersearchqa_full(
             extra_manifest=extra,
         )
 
-    pubmed_path = pubmed_jsonl or Path("data/raw/pubmed_bioasq_2022") / Path(CORPUS_JSONL).name
-    if not pubmed_path.exists():
-        extra["pubmed_sha256"] = download_pubmed_jsonl(pubmed_path)
+    pubmed_path = pubmed_jsonl or resolve_pubmed_jsonl(PUBMED_RAW)
     extra["pubmed_path"] = str(pubmed_path)
     extra["pubmed_bytes"] = pubmed_path.stat().st_size
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -367,8 +340,6 @@ def prepare_source(
     seed: int = 20260919,
     with_pubmed_corpus: bool = False,
 ) -> PreparedData:
-    if source in {"synthetic-dev", "synthetic_dev"}:
-        return prepare_synthetic_dev(output_dir)
     if source in {"papersearchqa-dev", "psqa-dev"}:
         return prepare_papersearchqa_dev(
             output_dir,
@@ -381,8 +352,8 @@ def prepare_source(
         if input_path is not None:
             return prepare_papersearchqa(input_path, output_dir, split=split)
         return prepare_papersearchqa_full(output_dir, with_pubmed_corpus=with_pubmed_corpus)
-    if input_path is None:
-        raise ValueError(f"{source} requires --input")
     if source == "qasper":
+        if input_path is None:
+            raise ValueError("qasper requires --input")
         return prepare_qasper(input_path, output_dir, split=split)
     raise ValueError(f"unknown source {source}")

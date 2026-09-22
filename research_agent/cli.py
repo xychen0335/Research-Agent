@@ -78,16 +78,12 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
     prepared_dir = Path(args.data)
     if not (prepared_dir / "public" / "tasks.jsonl").exists():
-        if prepared_dir.name in {"synthetic-dev", "synthetic_dev"}:
-            from research_agent.data.prepare import prepare_synthetic_dev
-
-            prepare_synthetic_dev(prepared_dir)
-        else:
-            raise SystemExit(
-                f"missing prepared data at {prepared_dir}. "
-                "Run: python -m research_agent.cli prepare --source papersearchqa "
-                "--with-pubmed-corpus --output data/processed/papersearchqa"
-            )
+        raise SystemExit(
+            f"missing prepared data at {prepared_dir}. "
+            "Place official files under data/raw/, then: "
+            "python -m research_agent.cli prepare --source papersearchqa "
+            "--with-pubmed-corpus --output data/processed/papersearchqa"
+        )
     tasks, specs, tools = snapshot_from_dir(prepared_dir)
     eval_cfg = _load_yaml(Path(args.eval_config)) if args.eval_config else {}
     frozen_ids = list(eval_cfg.get("frozen_task_ids") or [])
@@ -163,16 +159,12 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     prepared_dir = Path(args.data)
     if not (prepared_dir / "public" / "corpus.jsonl").exists():
-        if prepared_dir.name in {"synthetic-dev", "synthetic_dev"}:
-            from research_agent.data.prepare import prepare_synthetic_dev
-
-            prepare_synthetic_dev(prepared_dir)
-        else:
-            raise SystemExit(
-                f"missing prepared corpus at {prepared_dir}. "
-                "Run: python -m research_agent.cli prepare --source papersearchqa "
-                "--with-pubmed-corpus --output data/processed/papersearchqa"
-            )
+        raise SystemExit(
+            f"missing prepared corpus at {prepared_dir}. "
+            "Place official files under data/raw/, then: "
+            "python -m research_agent.cli prepare --source papersearchqa "
+            "--with-pubmed-corpus --output data/processed/papersearchqa"
+        )
     corpus = CorpusSnapshot.from_jsonl(prepared_dir / "public" / "corpus.jsonl")
     tools = ToolEnvironment(corpus)
     task = TaskInput(
@@ -242,7 +234,7 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 
     from apps.dashboard.app import create_app
 
-    app = create_app(Path(args.outputs))
+    app = create_app(Path(args.outputs), data_dir=Path(args.data) if getattr(args, "data", None) else None)
     uvicorn.run(app, host=args.host, port=args.port)
     return 0
 
@@ -265,7 +257,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--with-pubmed-corpus",
         dest="with_pubmed_corpus",
         action="store_true",
-        help="Download the 16M PubMed dump (~23GB) into public/corpus.jsonl",
+        help="Index the local 16M PubMed dump under data/raw/pubmed_bioasq_2022",
     )
     prepare.set_defaults(func=cmd_prepare)
 
@@ -302,6 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     dash = sub.add_parser("dashboard", help="Serve the trajectory board")
     dash.add_argument("--outputs", default="outputs")
+    dash.add_argument("--data", default="data/processed/papersearchqa")
     dash.add_argument("--host", default="127.0.0.1")
     dash.add_argument("--port", type=int, default=8765)
     dash.set_defaults(func=cmd_dashboard)
@@ -320,7 +313,7 @@ def build_parser() -> argparse.ArgumentParser:
     trained = sub.add_parser("eval-trained", help="Frozen eval of a LoRA adapter; missing weights stay not_run")
     trained.add_argument("--data", default="data/processed/papersearchqa")
     trained.add_argument("--eval-config", dest="eval_config", default="configs/evaluation/base_mini.yaml")
-    trained.add_argument("--model-name", dest="model_name", default="Qwen/Qwen3.5-4B")
+    trained.add_argument("--model-name", dest="model_name", default="models/Qwen3.5-4B")
     trained.add_argument("--adapter", required=True)
     trained.add_argument("--split", default=None)
     trained.add_argument("--limit", type=int, default=None)

@@ -34,11 +34,11 @@
       </select>
       <button type="submit">运行</button>
     </form>
-    <p class="note">scripted 写入合成语料对照。qwen3.5:4b 走本机 Ollama 与 PaperSearchQA 子集，耗时约半分钟。</p>
+    <p class="note">在线提问使用 <code>data/processed/</code> 里已转换的 PaperSearchQA 语料。qwen3.5:4b 走本机 Ollama，耗时约半分钟。</p>
   </section>
   <section id="showcase-section">
-    <h2>计算机科研案例</h2>
-    <p class="note">固定合成题 <code>cs-005</code>：BoostNet 相对 SyncRet 的 4.2 点提升是否依赖额外数据或划分。脚本 oracle 对照无检索；不是训练后的 Qwen3.5-4B。下方规划对照由固定提取器生成，人工盲评分栏为空。</p>
+    <h2>同一题轨迹对照</h2>
+    <p class="note">读取 <code>outputs/</code> 里已有 run。脚本 oracle 对照无检索；不是训练后的 Qwen3.5-4B。下方规划对照由固定提取器生成，人工盲评分栏为空。</p>
     <div id="showcase"></div>
   </section>
   <section>

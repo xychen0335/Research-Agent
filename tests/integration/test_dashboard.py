@@ -38,12 +38,21 @@ class TestDashboard(TempDirTestCase):
         assert "轨迹看板" in response.text
 
     def test_live_run_is_marked_live(self):
-        client = TestClient(create_app(self.tmp_path / "outputs"))
+        from tests.fixtures.harness import write_prepared
+
+        prepared = write_prepared(self.tmp_path / "data")
+        client = TestClient(create_app(self.tmp_path / "outputs", data_dir=prepared.output_dir))
         response = client.post("/api/live", json={"question": "Which gene is mutated in childhood retinoblastoma?", "run_id": "live"})
         assert response.status_code == 200
         payload = response.json()
         assert payload["live"] is True
         assert payload["question"].startswith("Which gene")
+
+    def test_live_without_prepared_data_is_400(self):
+        client = TestClient(create_app(self.tmp_path / "outputs", data_dir=self.tmp_path / "missing"))
+        response = client.post("/api/live", json={"question": "q", "run_id": "live"})
+        assert response.status_code == 400
+        assert "missing prepared corpus" in response.json()["detail"]
 
     def test_preferred_compare_defaults(self):
         outputs = self.tmp_path / "outputs"
@@ -81,7 +90,7 @@ class TestDashboard(TempDirTestCase):
         assert payload["task_id"] == "cs-005"
         assert payload["left"]["answer"] == "extra data and BoostSplit"
         assert payload["right"]["answer"] == "unknown"
-        assert "not a trained" in payload["note"]
+        assert "not a trained" in payload["note"].lower()
         names = {item["name"]: item for item in payload["planning"]["conditions"]}
         assert names["trained_agent"]["status"] == "not_run"
         assert names["scripted_oracle"]["plan"]["structural_flags"]["mentions_boostsplit"] is True

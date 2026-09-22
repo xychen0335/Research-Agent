@@ -1,5 +1,5 @@
-from research_agent.data.sources.synthetic_dev import TASKS
 from research_agent.environment.retrieval import BM25Index
+from tests.fixtures.harness import TASKS
 
 from tests.support import HarnessTestCase
 

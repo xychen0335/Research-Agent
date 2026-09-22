@@ -1,11 +1,11 @@
-"""QASPER conversion. Full-text scores and retrieval-converted scores stay separate."""
+"""QASPER conversion. Full-text scores and retrieval-converted scores stay separate.
+
+Reads a local json/jsonl dump. Does not download.
+"""
 
 from __future__ import annotations
 
 from typing import Any, Iterable
-
-
-SOURCE_URL = "https://huggingface.co/datasets/allenai/qasper"
 
 
 def _flatten_answers(answers_field: Any) -> list[str]:
@@ -59,7 +59,7 @@ def convert_qasper_rows(rows: Iterable[dict[str, Any]], *, split: str) -> tuple[
                 "title": title,
                 "paragraphs": paragraphs,
                 "source": f"qasper:{paper_id}",
-                "version": "qasper-adapter",
+                "version": "v1",
                 "metadata": {"paper_id": paper_id, "split": split, "task_kind": "single_paper"},
             }
         questions = row.get("qas") or row.get("questions") or []

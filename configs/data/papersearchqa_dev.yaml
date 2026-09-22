@@ -1,5 +1,4 @@
 source: papersearchqa-dev
-hf_revision: 563d32ebcf5a8081ed67abe4f7afe0ae614be1e1
 n_train: 40
 n_test: 10
 n_distractors: 40

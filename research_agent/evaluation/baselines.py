@@ -5,7 +5,6 @@ from __future__ import annotations
 from enum import Enum
 
 from research_agent.contracts import TOOL_OPEN, TOOL_SEARCH, TOOL_SUBMIT, TaskInput
-from research_agent.data.sources.synthetic_dev import task_by_id
 from research_agent.environment.tools import ToolEnvironment
 from research_agent.grading.contracts import GradingSpec
 from research_agent.models.scripted import ScriptedPolicy, tool_call
@@ -39,12 +38,11 @@ def _rag_scripts(tasks: list[TaskInput], tools: ToolEnvironment) -> dict[str, li
 
 
 def _oracle_scripts(tasks: list[TaskInput], specs: dict[str, GradingSpec]) -> dict[str, list[str]]:
-    """Oracle uses grading search hints. Never used as a reported trained policy."""
-    catalog = task_by_id()
+    """Oracle searches the question and opens gold support docs. Not a trained policy."""
     scripts: dict[str, list[str]] = {}
     for task in tasks:
         spec = specs[task.public_id()]
-        hint = catalog[task.public_id()].search_hint if task.public_id() in catalog else task.question
+        hint = task.question
         citations = list(spec.gold_evidence_ids)
         opens = [
             tool_call(TOOL_OPEN, {"doc_id": doc_id, "start": 0, "end": 4})

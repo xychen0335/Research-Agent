@@ -47,5 +47,5 @@ class TestEpisode(HarnessAsyncTestCase):
         assert "Human blind review" in packets[0]["note"]
 
     async def test_prepare_validation_ok(self):
-        assert self.prepared.n_tasks == 32
+        assert self.prepared.n_tasks == 2
         assert self.prepared.report["validation"]["ok"] is True

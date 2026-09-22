@@ -1,5 +1,5 @@
 name: cpu-dev
-data: configs/data/synthetic_dev.yaml
+data: configs/data/papersearchqa_dev.yaml
 harness: configs/harness/default.yaml
 model: configs/models/scripted.yaml
 eval: configs/evaluation/dev.yaml

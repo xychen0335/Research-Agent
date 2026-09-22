@@ -12,7 +12,7 @@ class TestReplay(HarnessAsyncTestCase):
             request_id="bio-001",
             task_id="bio-001",
             question="Which gene is mutated in childhood retinoblastoma?",
-            environment_id="synthetic-dev",
+            environment_id="test",
             budget=Budget(),
         )
         model = ScriptedPolicy(

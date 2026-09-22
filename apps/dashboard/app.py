@@ -103,8 +103,21 @@ def _episode_by_task(run: dict[str, Any], task_id: str) -> dict[str, Any] | None
     return None
 
 
-def create_app(outputs_dir: Path | None = None) -> FastAPI:
+def _resolved_data_dir(data_dir: Path | None) -> Path:
+    if data_dir is not None:
+        return data_dir
+    for candidate in (
+        Path("data/processed/papersearchqa"),
+        Path("data/processed/papersearchqa-dev"),
+    ):
+        if (candidate / "public" / "corpus.jsonl").exists():
+            return candidate
+    return Path("data/processed/papersearchqa")
+
+
+def create_app(outputs_dir: Path | None = None, data_dir: Path | None = None) -> FastAPI:
     outputs = outputs_dir or Path("outputs")
+    prepared_root = _resolved_data_dir(data_dir)
     app = FastAPI(title="research-agent-dashboard")
 
     @app.get("/api/health")
@@ -214,7 +227,7 @@ def create_app(outputs_dir: Path | None = None) -> FastAPI:
             "right": right_ep or {"unrun": True},
             "planning": planning,
             "note": (
-                "Computer-science showcase on synthetic-dev. "
+                "Same-question trajectory pair from outputs/. "
                 "Scripted oracle vs no-retrieval; not a trained Qwen3.5-4B checkpoint."
             ),
         }
@@ -222,31 +235,27 @@ def create_app(outputs_dir: Path | None = None) -> FastAPI:
     @app.post("/api/live")
     async def live(payload: LiveRequest) -> dict[str, Any]:
         from research_agent.contracts import TOOL_SEARCH, TOOL_SUBMIT, Budget, TaskInput
-        from research_agent.data.prepare import prepare_synthetic_dev
         from research_agent.environment.corpus import CorpusSnapshot
         from research_agent.environment.tools import ToolEnvironment
         from research_agent.harness.loop import run_episode
         from research_agent.models.scripted import ScriptedPolicy, tool_call
 
-        prepared = Path("data/processed/synthetic-dev")
+        prepared = prepared_root
         if not (prepared / "public" / "corpus.jsonl").exists():
-            prepare_synthetic_dev(prepared)
+            raise HTTPException(
+                400,
+                "missing prepared corpus. Place official files under data/raw/, then: "
+                "python -m research_agent.cli prepare --source papersearchqa "
+                "--output data/processed/papersearchqa",
+            )
         policy = payload.policy or "scripted"
+        corpus = CorpusSnapshot.from_jsonl(prepared / "public" / "corpus.jsonl")
+        tools = ToolEnvironment(corpus)
         if policy in {"ollama", "openai_compatible", "huggingface", "hf"}:
             from research_agent.models.factory import load_policy
 
-            data_dir = Path("data/processed/papersearchqa-dev")
-            if not (data_dir / "public" / "corpus.jsonl").exists():
-                data_dir = prepared
-                if not (prepared / "public" / "corpus.jsonl").exists():
-                    prepare_synthetic_dev(prepared)
-            corpus = CorpusSnapshot.from_jsonl(data_dir / "public" / "corpus.jsonl")
-            tools = ToolEnvironment(corpus)
             model = load_policy(policy)
-            env_id = "papersearchqa-dev" if data_dir.name == "papersearchqa-dev" else "synthetic-dev"
         else:
-            corpus = CorpusSnapshot.from_jsonl(prepared / "public" / "corpus.jsonl")
-            tools = ToolEnvironment(corpus)
             model = ScriptedPolicy(
                 {
                     "*": [
@@ -256,7 +265,7 @@ def create_app(outputs_dir: Path | None = None) -> FastAPI:
                 },
                 policy_version="scripted-live",
             )
-            env_id = "synthetic-dev"
+        env_id = prepared.name
         task = TaskInput(
             request_id=payload.run_id,
             question=payload.question,

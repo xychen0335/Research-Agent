@@ -8,13 +8,10 @@ import unittest
 from pathlib import Path
 
 from research_agent.contracts import Budget, TaskInput
-from research_agent.data.prepare import prepare_synthetic_dev
-from research_agent.data.sources.synthetic_dev import DOCUMENTS, TASKS, task_by_id
 from research_agent.environment.corpus import CorpusSnapshot
 from research_agent.environment.tools import ToolEnvironment
 from research_agent.evaluation.runner import load_grading, load_tasks
-
-assert len(TASKS) == 32
+from tests.fixtures.harness import DOCUMENTS, TASKS, write_prepared
 
 
 def make_corpus() -> CorpusSnapshot:
@@ -26,7 +23,7 @@ def make_tools(corpus: CorpusSnapshot | None = None) -> ToolEnvironment:
 
 
 def make_prepared(tmp_path: Path):
-    return prepare_synthetic_dev(tmp_path / "synthetic-dev")
+    return write_prepared(tmp_path / "fixture")
 
 
 def make_prepared_stack(prepared):
@@ -37,14 +34,14 @@ def make_prepared_stack(prepared):
 
 
 def task_input(task_id: str, budget: Budget | None = None) -> TaskInput:
-    item = task_by_id()[task_id]
+    item = next(task for task in TASKS if task.task_id == task_id)
     return TaskInput(
         request_id=task_id,
         task_id=task_id,
         question=item.question,
-        environment_id="synthetic-dev",
+        environment_id="test",
         budget=budget or Budget(),
-        split="dev",
+        split="train",
     )
 
 

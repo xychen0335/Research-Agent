@@ -2,7 +2,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from research_agent.data.prepare import prepare_papersearchqa_full, prepare_source
-from research_agent.data.sources.papersearchqa import convert_pubmed_record, stream_pubmed_corpus
+from research_agent.data.papersearchqa import convert_pubmed_record, stream_pubmed_corpus
 from research_agent.data.validate import validate_prepared
 from research_agent.environment.corpus import CorpusSnapshot
 
@@ -79,7 +79,7 @@ class TestPapersearchqaFull(TempDirTestCase):
             }
 
         with (
-            patch("research_agent.data.sources.papersearchqa.load_split_rows", fake_load),
+            patch("research_agent.data.papersearchqa.load_split_rows", fake_load),
             patch("research_agent.data.pubmed.fetch_abstracts", fake_fetch),
         ):
             prepared = prepare_papersearchqa_full(self.tmp_path / "psqa")
@@ -94,6 +94,14 @@ class TestPapersearchqaFull(TempDirTestCase):
             mocked.return_value = object()
             prepare_source("papersearchqa", self.tmp_path / "out")
         mocked.assert_called_once()
+
+    def test_prepare_source_rejects_unknown(self):
+        try:
+            prepare_source("synthetic-dev", self.tmp_path / "out")
+        except ValueError as exc:
+            assert "unknown source" in str(exc)
+            return
+        raise AssertionError("expected ValueError")
 
     def test_large_corpus_skips_bm25_audit_but_checks_support_docs(self):
         tasks = [{"task_id": "t1", "question": "q", "split": "train"}]
