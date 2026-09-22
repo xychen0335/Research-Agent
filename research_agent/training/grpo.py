@@ -43,7 +43,7 @@ class GRPOConfig:
     data: str = "data/processed/papersearchqa"
     output_dir: str = "outputs/grpo"
     policy: str = "huggingface"
-    model_name: str = "Qwen/Qwen3.5-4B"
+    model_name: str = "models/Qwen3.5-4B"
     adapter: str = ""
     backend: str = "auto"
 
@@ -304,8 +304,8 @@ def run_grpo(
     if model is None:
         if not cached_hf_model(cfg.model_name):
             result["error"] = (
-                f"{cfg.model_name} weights are not on disk; Ollama cannot supply GRPO logprobs. "
-                "Load HF weights on the GPU node."
+                f"{cfg.model_name} is missing. Place the HF snapshot at models/Qwen3.5-4B. "
+                "Ollama GGUF cannot supply GRPO logprobs."
             )
             result["hint"] = "Ollama generations lack token logprobs and cannot update GRPO"
             (Path(cfg.output_dir)).mkdir(parents=True, exist_ok=True)

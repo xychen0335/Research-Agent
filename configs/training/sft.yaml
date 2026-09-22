@@ -1,5 +1,5 @@
 method: lora_sft
-base: Qwen/Qwen3.5-4B
+base: models/Qwen3.5-4B
 jsonl: outputs/sft/messages.jsonl
 output_dir: outputs/sft
 lora_rank: 16

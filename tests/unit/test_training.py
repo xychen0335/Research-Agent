@@ -25,14 +25,13 @@ class TestTraining(HarnessAsyncTestCase):
     def test_cached_hf_model_is_false_for_missing_qwen(self):
         from research_agent.training.compat import cached_hf_model
 
-        assert cached_hf_model("Qwen/Qwen3.5-4B") is False
         assert cached_hf_model("/tmp/does-not-exist-qwen35") is False
 
     def test_sft_config_ignores_unknown_yaml_keys(self):
         path = self.tmp_path / "sft.yaml"
-        path.write_text("method: lora_sft\nbase: Qwen/Qwen3.5-4B\nmax_steps: 3\nnote: x\n", encoding="utf-8")
+        path.write_text("method: lora_sft\nbase: models/Qwen3.5-4B\nmax_steps: 3\nnote: x\n", encoding="utf-8")
         cfg = load_sft_config(path)
-        assert cfg.base == "Qwen/Qwen3.5-4B"
+        assert cfg.base == "models/Qwen3.5-4B"
         assert cfg.max_steps == 3
         assert cfg.min_rows == 16
 

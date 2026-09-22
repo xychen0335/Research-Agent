@@ -11,11 +11,13 @@ build/
 outputs/
 data/generated/
 data/processed/
-data/raw/
+data/raw/**
+!data/raw/README.md
+/models/**
+!/models/README.md
 data/splits/
 data/databases/
 checkpoints/
 exports/
-/models/
 *.gguf
 upstream/

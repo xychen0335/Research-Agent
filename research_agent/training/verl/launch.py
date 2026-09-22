@@ -29,6 +29,7 @@ _RESOLVE_KEYS = (
     "research_agent.data",
     "rollout.agent.data",
     "lora_adapter_path",
+    "model.path",
 )
 
 

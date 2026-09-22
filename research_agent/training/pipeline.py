@@ -54,7 +54,7 @@ def run_gpu_mini(
         _write(out, report)
         return report
     if not cached_hf_model(base):
-        report["error"] = f"{base} weights are not on disk; refusing Hub download"
+        report["error"] = f"{base} is missing. Place the HF snapshot at models/Qwen3.5-4B"
         _write(out, report)
         return report
     if compat.get("cuda_available") and compat.get("verl") not in {None, "not_installed"}:

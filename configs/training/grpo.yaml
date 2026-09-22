@@ -9,7 +9,7 @@ max_updates: 1
 data: data/processed/papersearchqa
 output_dir: outputs/grpo
 policy: huggingface
-model_name: Qwen/Qwen3.5-4B
+model_name: models/Qwen3.5-4B
 adapter: ""
 backend: auto
 status: not_run

@@ -21,7 +21,7 @@ class TestAdapterReload(TempDirTestCase):
     def test_grpo_policy_requests_trainable_adapter(self):
         policy = load_policy(
             "huggingface",
-            model_name="Qwen/Qwen3.5-4B",
+            model_name="models/Qwen3.5-4B",
             adapter=None,
             local_files_only=True,
             trainable_adapter=True,
@@ -31,7 +31,7 @@ class TestAdapterReload(TempDirTestCase):
         assert policy._local_files_only is True
         eval_policy = load_policy(
             "huggingface",
-            model_name="Qwen/Qwen3.5-4B",
+            model_name="models/Qwen3.5-4B",
             adapter="outputs/grpo/adapter",
             local_files_only=True,
         )

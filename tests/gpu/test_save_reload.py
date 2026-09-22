@@ -13,8 +13,8 @@ class TestSaveReload(TempDirTestCase):
         report = probe()
         if not report.get("cuda_available"):
             self.skipTest("CUDA not available; GPU update/save/reload is unverified")
-        if not cached_hf_model("Qwen/Qwen3.5-4B"):
-            self.skipTest("Qwen/Qwen3.5-4B is not on disk; refusing Hub download")
+        if not cached_hf_model("models/Qwen3.5-4B"):
+            self.skipTest("models/Qwen3.5-4B is not on disk")
         rows = self.tmp_path / "sft.jsonl"
         rows.write_text(
             '{"messages":[{"role":"system","content":"tools"},{"role":"user","content":"q"},'
@@ -23,7 +23,7 @@ class TestSaveReload(TempDirTestCase):
             encoding="utf-8",
         )
         cfg = SFTConfig(
-            base="Qwen/Qwen3.5-4B",
+            base="models/Qwen3.5-4B",
             jsonl=str(rows),
             output_dir=str(self.tmp_path / "sft"),
             max_steps=1,
@@ -38,7 +38,7 @@ class TestSaveReload(TempDirTestCase):
 
         policy = load_policy(
             "huggingface",
-            model_name="Qwen/Qwen3.5-4B",
+            model_name="models/Qwen3.5-4B",
             adapter=result["adapter"],
             local_files_only=True,
             trainable_adapter=True,

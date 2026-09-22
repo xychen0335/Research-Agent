@@ -39,6 +39,7 @@ def main() -> int:
     print(f"cuda_available={report['cuda_available']}")
     print(f"mps_available={report.get('mps_available')}")
     print(f"qwen35_4b_cached={report.get('qwen35_4b_cached')}")
+    print(f"model_path={report.get('model_path')}")
     print(f"cuda_device={report['cuda_device']}")
     print(f"vllm={report['vllm']}")
     print(f"verl={report['verl']}")

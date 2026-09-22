@@ -18,7 +18,7 @@ IGNORE_INDEX = -100
 
 @dataclass
 class SFTConfig:
-    base: str = "Qwen/Qwen3.5-4B"
+    base: str = "models/Qwen3.5-4B"
     jsonl: str = "outputs/sft/messages.jsonl"
     output_dir: str = "outputs/sft"
     lora_rank: int = 16
@@ -269,11 +269,13 @@ def run_sft(cfg: SFTConfig) -> dict[str, Any]:
         return _persist(cfg, result)
     if not cached_hf_model(cfg.base):
         result["error"] = (
-            f"{cfg.base} weights are not on disk; refusing Hub download from this machine. "
-            f"disk_free_gb={report.get('disk_free_gb')}. Copy the HF snapshot onto the GPU node before SFT."
+            f"{cfg.base} is missing. Place the HF snapshot at models/Qwen3.5-4B before SFT."
         )
         result["device"] = device
         return _persist(cfg, result)
+    from research_agent.paths import resolve_model_path
+
+    cfg.base = str(resolve_model_path(cfg.base))
     try:
         trained = _lora_train(cfg, rows, device)
         result.update(trained)

@@ -8,6 +8,8 @@ from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any
 
+from research_agent.paths import DEFAULT_MODEL, model_available, resolve_model_path
+
 
 def _package_version(name: str) -> str | None:
     try:
@@ -16,16 +18,12 @@ def _package_version(name: str) -> str | None:
         return None
 
 
-def cached_hf_model(name: str) -> bool:
-    path = Path(name)
-    if path.exists():
-        return True
-    slug = "models--" + name.replace("/", "--")
-    hub = Path.home() / ".cache/huggingface/hub" / slug
-    return hub.exists()
+def cached_hf_model(name: str | None = None) -> bool:
+    return model_available(name)
 
 
 def probe() -> dict[str, Any]:
+    model_path = resolve_model_path()
     report: dict[str, Any] = {
         "torch": None,
         "cuda_available": False,
@@ -35,7 +33,8 @@ def probe() -> dict[str, Any]:
         "verl": None,
         "gpu_training": "not_run",
         "qwen35_4b": "unverified",
-        "qwen35_4b_cached": cached_hf_model("Qwen/Qwen3.5-4B"),
+        "qwen35_4b_cached": model_available(),
+        "model_path": str(model_path),
     }
     torch_version = _package_version("torch")
     if torch_version is None:
@@ -49,7 +48,7 @@ def probe() -> dict[str, Any]:
         if torch.cuda.is_available():
             report["cuda_device"] = torch.cuda.get_device_name(0)
     if report["qwen35_4b_cached"]:
-        report["qwen35_4b"] = "cached"
+        report["qwen35_4b"] = "local"
     report["vllm"] = _package_version("vllm") or "not_installed"
     report["verl"] = _package_version("verl") or "not_installed"
     usage = shutil.disk_usage(Path.cwd())

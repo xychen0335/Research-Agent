@@ -7,10 +7,11 @@ from typing import Any
 
 from research_agent.models.openai_compatible import OpenAICompatiblePolicy
 from research_agent.models.scripted import ScriptedPolicy
+from research_agent.paths import DEFAULT_MODEL, HF_HUB_ID, resolve_model_path
 
 OLLAMA_DEFAULT_BASE = "http://127.0.0.1:11434/v1"
 OLLAMA_DEFAULT_MODEL = "qwen3.5:4b"
-HF_DEFAULT_MODEL = "Qwen/Qwen3.5-4B"
+HF_DEFAULT_MODEL = str(DEFAULT_MODEL)
 
 
 def load_policy(
@@ -36,7 +37,7 @@ def load_policy(
         resolved_url = base_url or os.environ.get("RESEARCH_AGENT_BASE_URL")
         if name == "ollama":
             resolved_url = resolved_url or OLLAMA_DEFAULT_BASE
-            if not model_name or model_name == HF_DEFAULT_MODEL:
+            if not model_name or model_name in {HF_DEFAULT_MODEL, HF_HUB_ID, DEFAULT_MODEL.name}:
                 resolved_model = OLLAMA_DEFAULT_MODEL
         think = True
         return OpenAICompatiblePolicy(
@@ -50,14 +51,14 @@ def load_policy(
     if name in {"huggingface", "hf"}:
         from research_agent.models.huggingface import HuggingFacePolicy
 
-        resolved_model = model_name or os.environ.get("RESEARCH_AGENT_HF_MODEL") or HF_DEFAULT_MODEL
+        resolved_model = str(resolve_model_path(model_name or os.environ.get("RESEARCH_AGENT_HF_MODEL")))
         return HuggingFacePolicy(
             model_name=resolved_model,
             policy_version=policy_version or resolved_model,
             temperature=temperature,
             max_tokens=max_tokens,
             adapter=adapter,
-            local_files_only=local_files_only,
+            local_files_only=True,
             trainable_adapter=trainable_adapter,
         )
     raise ValueError(f"unknown policy kind: {kind}")
