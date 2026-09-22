@@ -50,9 +50,18 @@ python scripts/setup/check_env.py    # 应看到 torch / cuda / vllm / verl
 
 `verl` 按官方方式从源码装（`git clone` + `pip install -e`），本仓库不把训练框架复制进 `research_agent/`。vLLM 需要 Linux + CUDA；macOS CPU 不要装 `.[train]`。
 
-### 2. 数据
+### 2. 数据与模型
 
-训练和评测用 **PaperSearchQA 官方全集**，不是仓库里的 32 题合成集。QA 集：54907 train + 5000 test。检索语料：`jmhb/pubmed_bioasq_2022` 的约 16M PubMed 摘要（jsonl 约 23GB）。test 划分不进入 RL。
+工作目录里先放好原始数据和权重，脚本只做转换和 load。把 PaperSearchQA 的 train/test parquet 放到 `data/raw/papersearchqa/`，把 `pubmed.jsonl` 放到 `data/raw/pubmed_bioasq_2022/`。
+
+```text
+data/raw/papersearchqa/train-00000-of-00001.parquet
+data/raw/papersearchqa/test-00000-of-00001.parquet
+data/raw/pubmed_bioasq_2022/pubmed.jsonl
+models/Qwen3.5-4B/          # HF 快照：config.json、tokenizer、权重
+```
+
+然后转换官方全集（54907 train + 5000 test；16M PubMed 摘要）。test 划分不进入 RL。
 
 ```bash
 python -m research_agent.cli prepare \
@@ -61,11 +70,9 @@ python -m research_agent.cli prepare \
   --output data/processed/papersearchqa
 ```
 
-得到 `data/processed/papersearchqa/public/{tasks,corpus}.jsonl` 和 `private/grading.jsonl`。公开文件不含答案。不加 `--with-pubmed-corpus` 时语料只有题目对应的 gold 摘要，**不能**当成 16M 检索成绩。
+得到 `data/processed/papersearchqa/public/{tasks,corpus}.jsonl` 和 `private/grading.jsonl`。公开文件不含答案。不加 `--with-pubmed-corpus` 时语料只有 gold 摘要，**不能**当成 16M 检索成绩。进程内 BM25 会把语料载入内存；16M 索引需要训练节点上的内存。
 
-Hub revision 见 `configs/data/papersearchqa.yaml`。进程内 BM25 会把语料载入内存；16M 索引需要训练节点上的内存，本机内存不够就不要在笔记本上建全量索引。
-
-CPU 单测仍用仓库内 `synthetic-dev`（`--source synthetic-dev`），只验证 harness，不是训练数据。已有的 50 题开发子集是 `--source papersearchqa-dev`，只用于流程冒烟和已测的 8 题冻结评测。
+CPU 单测用 `tests/fixtures` 里的两篇短文，不进入训练或评测。50 题开发子集是 `--source papersearchqa-dev`，只用于流程冒烟和已测的 8 题冻结评测。
 
 ### 3. 推理
 
@@ -118,7 +125,7 @@ python -m research_agent.cli dashboard --outputs outputs --port 8765
 
 ### 4. 训练
 
-对齐 PaperSearchQA / Search-R1：Qwen3.5-4B **直接 GRPO**，不用教师轨迹，也不把 LoRA SFT 当冷启动。要 CUDA 以及磁盘上的 `Qwen/Qwen3.5-4B`，本仓库不从 Hub 拉 4B。
+对齐 PaperSearchQA / Search-R1：Qwen3.5-4B **直接 GRPO**，不用教师轨迹，也不把 LoRA SFT 当冷启动。要 CUDA 以及 `models/Qwen3.5-4B`。
 
 ```bash
 bash scripts/train/verl_grpo.sh
@@ -149,9 +156,7 @@ python -m research_agent.cli compare \
 
 ## 数据口径
 
-PaperSearchQA：<https://huggingface.co/datasets/jmhb/PaperSearchQA>，revision `563d32ebcf5a8081ed67abe4f7afe0ae614be1e1`，QA 为 MIT。检索语料：<https://huggingface.co/datasets/jmhb/pubmed_bioasq_2022>。
-
-`synthetic-dev` 在 `research_agent/data/sources/synthetic_dev.py`：32 题仓库内短文，只给单测和离线冒烟。`cs-005` 用来对照 BoostNet 的 4.2 点提升是否依赖 ExtraMix-2M / BoostSplit。子集成绩不能和 16M 全语料成绩混报。
+PaperSearchQA 官方划分约 5.5 万 train + 5 千 test。开发子集成绩不能和 16M 全语料成绩混报。
 
 ## 代码入口
 

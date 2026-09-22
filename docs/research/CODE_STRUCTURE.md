@@ -45,9 +45,10 @@ Research-Agent/
 │   │   ├── retrieval.py              # 首版固定词法检索
 │   │   └── server.py                 # 可选独立检索服务入口
 │   ├── data/
-│   │   ├── sources/                  # PaperSearchQA、QASPER 来源适配
-│   │   ├── prepare.py                # 格式转换、分块、划分、manifest
-│   │   ├── synthesize.py             # 证据出发的问题与评分依据合成
+│   │   ├── prepare.py                # data/raw → data/processed
+│   │   ├── papersearchqa.py          # 读本地 parquet 与 pubmed dump
+│   │   ├── qasper.py                 # 可选单论文转换
+│   │   ├── pubmed.py                 # 读本地 abstracts.json 缓存
 │   │   └── validate.py               # 去重、答案证据核验、泄露审计
 │   ├── grading/
 │   │   ├── contracts.py              # 私有 GradingSpec、Score，与公共输入隔离
@@ -72,7 +73,6 @@ Research-Agent/
 │       └── planning.py               # 固定规划模型的下游盲评数据导出
 ├── prompts/
 │   ├── agent.md                      # 训练与部署共用的系统提示词
-│   ├── synthesize.md                 # 任务生成提示词
 │   └── verify.md                     # 独立核验提示词
 ├── configs/
 │   ├── data/                         # 来源、划分、语料构建配置
@@ -84,7 +84,7 @@ Research-Agent/
 │   └── upstreams.json                # 仓库 URL、固定 commit、补丁清单
 ├── scripts/
 │   ├── setup/                        # 环境建立、依赖与设备检查
-│   ├── data/                         # 准备语料、合成的薄入口
+│   ├── data/                         # 准备语料的薄入口
 │   ├── train/                        # GRPO、可选 SFT、checkpoint 导出入口
 │   └── eval/                         # 批量评测启动入口
 ├── apps/
@@ -94,17 +94,18 @@ Research-Agent/
 │   ├── unit/                         # 预算、终止、格式、评分等纯逻辑
 │   ├── integration/                  # harness/工具/后端接口及标签隔离
 │   ├── gpu/                          # 单步更新、权重同步、导出重载；无 CUDA 时 skip
-│   └── fixtures/                     # 小型合成文档与轨迹，不代表性能基准
+│   └── fixtures/                     # 单测夹具，不代表性能基准
 ├── docs/research/
 │   ├── PLAN.md
 │   └── CODE_STRUCTURE.md
 ├── upstream/                         # 忽略：固定版本的第三方检出
 ├── patches/                          # 仅在确需改上游时保存补丁与说明
-├── data/                             # 忽略：原始资料、语料、索引、任务、轨迹
+├── data/                             # 工作目录：raw 已下载，processed 为 prepare 产物
+├── models/                           # 工作目录：已下载的 HF 快照，训练只 load
 └── outputs/                          # 忽略：运行配置快照、事件、评测、checkpoint
 ```
 
-`research_agent/data/` 是处理代码，根目录 `data/` 是产物，两者不能混放。各 Python 子包实现时添加所需 `__init__.py`。不创建通用 `utils/`、第二个 Agent 包或同时存在的 `adapters/` 大目录；适配器跟随其具体职责放置。
+`research_agent/data/` 是处理代码，根目录 `data/` 是已下载的原始文件和 prepare 产物，两者不能混放。`models/` 放权重快照，配置里的路径指向该目录。
 
 ## 依赖与数据边界
 
@@ -121,8 +122,7 @@ Research-Agent/
 
 | 操作 | 调用顺序 |
 | --- | --- |
-| 准备训练任务 | `data/sources → prepare → validate → data/` |
-| 合成新任务 | `corpus → synthesize → validate → 私有评分依据与公共任务分开存储` |
+| 准备训练任务 | `prepare → validate → data/processed/` |
 | GRPO 组采集（HF 回退） | `training/grpo.collect_group → harness → grading → export_grpo_group` |
 | GRPO 训练 | `verl.trainer.main_ppo → VerlResearchAgentLoop.run → harness → model_backend + environment` |
 | RL 评分更新 | `完成轨迹 → reward_adapter.compute_score → grading/reward → verl trainer` |
@@ -146,7 +146,7 @@ Research-Agent/
 ## 按功能逐步建目录
 
 1. 建公共契约、最小 harness、文档工具与 CPU 单测，使一条任务完成搜索、阅读、提交和事件落盘。
-2. 建来源适配、任务验证和评分器，再接模型服务，跑真实 Base 小基线。
+2. 读本地 raw 数据、任务验证和评分器，再接模型服务，跑真实 Base 小基线。
 3. 接 verl adapter 与 GPU 单步验证。
 4. 建批量评测、科研案例、下游规划评测与看板。
 5. 测量性能后扩展并发与异步训练。
